@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>極簡相簿</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+
+        .aspect-square {
+            aspect-ratio: 1 / 1;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 min-h-screen text-gray-800">
+    <nav class="bg-white shadow mb-6">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <a href="/" class="text-xl font-bold text-blue-600">極簡相簿</a>
+            <!-- Basic Auth or User info could go here -->
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-4 pb-12">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="bg-gray-200 py-6 mt-auto">
+        <div class="container mx-auto px-4 text-center text-gray-500 text-sm">
+            &copy; 2026 EasyAlbum. Powered by Flask & Docker.
+        </div>
+    </footer>
+</body>
+
+</html>
