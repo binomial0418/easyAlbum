@@ -49,8 +49,11 @@
 
         img {
             max-width: 100%;
+            max-height: var(--photo-max-height, 85vh);
+            width: auto;
             height: auto;
             display: block;
+            margin: 0 auto;
             box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
         }
     </style>
@@ -116,6 +119,16 @@
                 return false;
             }
         };
+
+        // 依視窗高度動態設定照片最大高度，保留 navbar（約 64px）與 padding
+        function updatePhotoMaxHeight() {
+            const navH = document.querySelector('nav') ? document.querySelector('nav').offsetHeight : 64;
+            const maxH = window.innerHeight - navH - 40; // 40px 緩衝
+            document.documentElement.style.setProperty('--photo-max-height', maxH + 'px');
+        }
+
+        updatePhotoMaxHeight();
+        window.addEventListener('resize', updatePhotoMaxHeight);
     </script>
 </body>
 
