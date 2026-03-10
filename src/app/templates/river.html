@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,14 +21,17 @@
             user-select: none;
             -webkit-user-select: none;
         }
+
         .photo-container {
             max-width: 1200px;
             margin: 0 auto;
         }
+
         .photo-item {
             margin-bottom: 80px;
             text-align: center;
         }
+
         .img-overlay {
             position: absolute;
             top: 0;
@@ -36,22 +40,26 @@
             height: 100%;
             z-index: 10;
         }
+
         .img-wrapper {
             position: relative;
             display: inline-block;
             max-width: 100%;
         }
+
         img {
             max-width: 100%;
             height: auto;
             display: block;
-            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
         }
     </style>
 </head>
+
 <body oncontextmenu="return false" ondragstart="return false">
 
-    <nav class="sticky top-0 z-50 bg-black bg-opacity-80 backdrop-blur-md border-b border-gray-800 py-4 px-6 mb-8 flex justify-between items-center">
+    <nav
+        class="sticky top-0 z-50 bg-black bg-opacity-80 backdrop-blur-md border-b border-gray-800 py-4 px-6 mb-8 flex justify-between items-center">
         <div class="flex items-center space-x-4">
             <h1 class="text-lg font-medium text-gray-100 truncate max-w-md">
                 {{ subpath.split('/')[-1] if subpath else 'Home' }}
@@ -59,11 +67,12 @@
         </div>
         <div class="flex items-center space-x-4">
             {% if not is_public %}
-            <a href="/album/{{ subpath }}" class="text-sm text-gray-400 hover:text-gray-100 transition-colors border border-gray-700 hover:border-gray-500 rounded px-3 py-1">
+            <a href="/album/{{ subpath }}"
+                class="text-sm text-gray-400 hover:text-gray-100 transition-colors border border-gray-700 hover:border-gray-500 rounded px-3 py-1">
                 ← 回到相簿
             </a>
             {% endif %}
-            <span class="text-sm text-gray-500">Flickriver Style</span>
+            <span class="text-sm text-gray-500">瀑布檢視模式</span>
         </div>
     </nav>
 
@@ -72,9 +81,8 @@
         <div class="photo-item">
             <div class="img-wrapper">
                 <div class="img-overlay"></div>
-                <img src="/photo/{% if subpath %}{{ subpath }}/{% endif %}{{ img.name }}"
-                     alt="{{ img.name }}"
-                     loading="lazy">
+                <img src="/photo/{% if subpath %}{{ subpath }}/{% endif %}{{ img.name }}" alt="{{ img.name }}"
+                    loading="lazy">
             </div>
 
             {% if img.exif %}
@@ -103,11 +111,12 @@
     </footer>
 
     <script>
-        document.onkeydown = function(e) {
+        document.onkeydown = function (e) {
             if (e.ctrlKey && (e.keyCode === 67 || e.keyCode === 86 || e.keyCode === 85 || e.keyCode === 83 || e.keyCode === 123)) {
                 return false;
             }
         };
     </script>
 </body>
+
 </html>
