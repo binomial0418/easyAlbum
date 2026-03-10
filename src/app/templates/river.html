@@ -53,20 +53,17 @@
 
     <nav class="sticky top-0 z-50 bg-black bg-opacity-80 backdrop-blur-md border-b border-gray-800 py-4 px-6 mb-8 flex justify-between items-center">
         <div class="flex items-center space-x-4">
-            {% if not is_public %}
-            <a href="/album/{{ subpath }}" class="text-blue-400 hover:text-blue-300 flex items-center transition">
-                <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                </svg>
-                返回相簿
-            </a>
-            {% endif %}
             <h1 class="text-lg font-medium text-gray-100 truncate max-w-md">
                 {{ subpath.split('/')[-1] if subpath else 'Home' }}
             </h1>
         </div>
-        <div class="text-sm text-gray-500">
-            Flickriver Style
+        <div class="flex items-center space-x-4">
+            {% if not is_public %}
+            <a href="/album/{{ subpath }}" class="text-sm text-gray-400 hover:text-gray-100 transition-colors border border-gray-700 hover:border-gray-500 rounded px-3 py-1">
+                ← 回到相簿
+            </a>
+            {% endif %}
+            <span class="text-sm text-gray-500">Flickriver Style</span>
         </div>
     </nav>
 
@@ -103,9 +100,6 @@
 
     <footer class="py-20 text-center text-gray-600 border-t border-gray-900 mt-20">
         <p>End of album</p>
-        {% if not is_public %}
-        <p class="mt-4"><a href="/album/{{ subpath }}" class="text-blue-500 hover:underline">返回相簿首頁</a></p>
-        {% endif %}
     </footer>
 
     <script>
