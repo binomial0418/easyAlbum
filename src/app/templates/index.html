@@ -102,6 +102,24 @@
         } catch (e) {
             alert('Error updating cover: ' + e);
         }
+    },
+    async shareAlbum() {
+        try {
+            const response = await fetch('/api/share-link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ subpath: '{{ subpath }}' })
+            });
+            const data = await response.json();
+            if (data.success) {
+                await navigator.clipboard.writeText(data.share_url);
+                alert('分享連結已複製到剪貼簿！\n\n' + data.share_url);
+            } else {
+                alert('產生連結失敗: ' + data.error);
+            }
+        } catch (e) {
+            alert('發生錯誤: ' + e);
+        }
     }
     }">
 
@@ -138,7 +156,7 @@
     </h2>
     <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
         {% for folder in dirs %}
-        <a href="/album/{{ (subpath + ' /') if subpath else '' }}{{ folder.name }}"
+        <a href="/album/{{ (subpath + '/') if subpath else '' }}{{ folder.name }}"
             class="group block bg-white rounded-lg shadow hover:shadow-md transition overflow-hidden">
             {% if folder.cover %}
             <div class="aspect-square relative">
@@ -167,7 +185,21 @@
     <!-- Photos -->
     {% if images %}
     <h2 class="text-xl font-semibold mb-4 border-b pb-2 flex justify-between items-center">
-        <span>Photos</span>
+        <div class="flex items-center space-x-3">
+            <span>Photos</span>
+            <a href="/river/{{ subpath }}" id="river-link" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition font-medium flex items-center shadow-sm">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                </svg>
+                大圖瀏覽
+            </a>
+            <button @click="shareAlbum()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition font-medium flex items-center shadow-sm">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                分享連結
+            </button>
+        </div>
         <div class="flex space-x-2 items-center">
             {% if sort %}
             <select x-model="sortBy" @change="updateSort()"
@@ -299,7 +331,7 @@
                 </svg>
             </button>
 
-            <!-- Share Button -->
+            <!-- Share Image Button -->
             <button @click.stop="shareImage()"
                 class="bg-white text-gray-800 px-4 py-2 rounded-full shadow hover:bg-gray-100 font-medium text-sm transition flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24"
@@ -317,21 +349,27 @@
     </div>
 
 </div>
+
 <script>
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                // Does this cookie string begin with the name we want?
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
+    (function() {
+        const SCROLL_KEY = 'albumScrollPos:' + window.location.pathname;
+
+        // 返回時恢復滾動位置
+        const savedPos = sessionStorage.getItem(SCROLL_KEY);
+        if (savedPos !== null) {
+            sessionStorage.removeItem(SCROLL_KEY);
+            window.addEventListener('load', function() {
+                window.scrollTo({ top: parseInt(savedPos, 10), behavior: 'instant' });
+            });
         }
-        return cookieValue;
-    }
+
+        // 點擊大圖瀏覽前記住目前滾動位置
+        const riverLink = document.getElementById('river-link');
+        if (riverLink) {
+            riverLink.addEventListener('click', function() {
+                sessionStorage.setItem(SCROLL_KEY, window.scrollY);
+            });
+        }
+    })();
 </script>
 {% endblock %}

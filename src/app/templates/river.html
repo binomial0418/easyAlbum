@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ subpath.split('/')[-1] if subpath else 'Home' }} | 極簡相簿</title>
+    <!-- Open Graph -->
+    <meta property="og:title" content="{{ subpath.split('/')[-1] if subpath else 'Home' }} | 極簡相簿">
+    <meta property="og:type" content="website">
+    {% if cover_url %}
+    <meta property="og:image" content="{{ cover_url }}">
+    <meta property="og:image:width" content="600">
+    <meta property="og:image:height" content="600">
+    {% endif %}
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #111;
+            color: #ccc;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .photo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .photo-item {
+            margin-bottom: 80px;
+            text-align: center;
+        }
+        .img-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+        }
+        .img-wrapper {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body oncontextmenu="return false" ondragstart="return false">
+
+    <nav class="sticky top-0 z-50 bg-black bg-opacity-80 backdrop-blur-md border-b border-gray-800 py-4 px-6 mb-8 flex justify-between items-center">
+        <div class="flex items-center space-x-4">
+            {% if not is_public %}
+            <a href="/album/{{ subpath }}" class="text-blue-400 hover:text-blue-300 flex items-center transition">
+                <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+                返回相簿
+            </a>
+            {% endif %}
+            <h1 class="text-lg font-medium text-gray-100 truncate max-w-md">
+                {{ subpath.split('/')[-1] if subpath else 'Home' }}
+            </h1>
+        </div>
+        <div class="text-sm text-gray-500">
+            Flickriver Style
+        </div>
+    </nav>
+
+    <div class="photo-container px-4">
+        {% for img in images %}
+        <div class="photo-item">
+            <div class="img-wrapper">
+                <div class="img-overlay"></div>
+                <img src="/photo/{% if subpath %}{{ subpath }}/{% endif %}{{ img.name }}"
+                     alt="{{ img.name }}"
+                     loading="lazy">
+            </div>
+
+            {% if img.exif %}
+            <div class="mt-4 text-sm text-gray-400">
+                <div class="font-medium text-gray-300 mb-1">
+                    {{ img.exif.model if img.exif.model else 'Unknown Camera' }}
+                    {% if img.exif.lens %} • {{ img.exif.lens }}{% endif %}
+                </div>
+                <div class="flex justify-center space-x-4 opacity-75">
+                    {% if img.exif.f_number %}<span>{{ img.exif.f_number }}</span>{% endif %}
+                    {% if img.exif.shutter %}<span>{{ img.exif.shutter }}</span>{% endif %}
+                    {% if img.exif.iso %}<span>ISO {{ img.exif.iso }}</span>{% endif %}
+                    {% if img.exif.date %}<span>{{ img.exif.date }}</span>{% endif %}
+                </div>
+                <div class="mt-1 text-xs opacity-50">{{ img.name }}</div>
+            </div>
+            {% else %}
+            <div class="mt-2 text-xs text-gray-600">{{ img.name }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <footer class="py-20 text-center text-gray-600 border-t border-gray-900 mt-20">
+        <p>End of album</p>
+        {% if not is_public %}
+        <p class="mt-4"><a href="/album/{{ subpath }}" class="text-blue-500 hover:underline">返回相簿首頁</a></p>
+        {% endif %}
+    </footer>
+
+    <script>
+        document.onkeydown = function(e) {
+            if (e.ctrlKey && (e.keyCode === 67 || e.keyCode === 86 || e.keyCode === 85 || e.keyCode === 83 || e.keyCode === 123)) {
+                return false;
+            }
+        };
+    </script>
+</body>
+</html>
