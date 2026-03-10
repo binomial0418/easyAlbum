@@ -1,10 +1,11 @@
 import os
 import io
+from urllib.parse import quote
 from PIL import Image
 from flask import Flask, render_template, send_from_directory, abort, request, jsonify, send_file, redirect, url_for, flash
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash
-from src.app.utils import scan_directory, ensure_thumbnail, set_album_cover, set_album_sort_config, clean_directory_cache, PHOTO_ROOT, THUMB_ROOT
+from src.app.utils import scan_directory, ensure_thumbnail, set_album_cover, set_album_sort_config, clean_directory_cache, PHOTO_ROOT, THUMB_ROOT, get_album_share_token, set_album_share_token, verify_album_share_token, get_album_cover
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-please-change')
@@ -60,10 +61,6 @@ def index():
 @login_required
 def album_view(subpath=''):
     """Display the contents of a directory (sub-albums and photos)."""
-    # Sanitize path to prevent traversal is handled by scan_directory logic mostly,
-    # but safe_join usage or explicit checks are good.
-    # scan_directory handles '..' check.
-    
     content = scan_directory(subpath)
     if content is None:
         abort(404, description="Album not found or access denied")
@@ -85,6 +82,66 @@ def album_view(subpath=''):
                          images=content['images'],
                          sort=content.get('sort'),
                          breadcrumbs=breadcrumbs)
+
+@app.route('/river/')
+@app.route('/river/<path:subpath>')
+def river_view(subpath=''):
+    """Display the photos in Flickriver style (read-only, vertical scroll)."""
+    token = request.args.get('token')
+    is_public = False
+    
+    if token:
+        if verify_album_share_token(subpath, token):
+            is_public = True
+        else:
+            abort(403, description="Invalid sharing token")
+    
+    if not is_public and not current_user.is_authenticated:
+        return redirect(url_for('login'))
+        
+    content = scan_directory(subpath)
+    if content is None:
+        abort(404, description="Album not found or access denied")
+
+    # 取得封面圖用於 OG image
+    cover_url = None
+    full_dir = os.path.join(PHOTO_ROOT, subpath)
+    cover_filename = get_album_cover(full_dir)
+    if cover_filename:
+        base_url = request.host_url.rstrip('/')
+        encoded_cover_path = quote(
+            (subpath + '/' + cover_filename).lstrip('/'), safe='/'
+        )
+        cover_url = f"{base_url}/thumbnail/{encoded_cover_path}"
+
+    return render_template('river.html', 
+                         subpath=subpath, 
+                         images=content['images'],
+                         is_public=is_public,
+                         cover_url=cover_url)
+
+@app.route('/api/share-link', methods=['POST'])
+@login_required
+def share_link():
+    """API to generate or get a sharing link for an album."""
+    data = request.get_json()
+    if not data or 'subpath' not in data:
+        return jsonify({'success': False, 'error': 'Missing parameters'}), 400
+        
+    subpath = data['subpath']
+    token = get_album_share_token(subpath)
+    
+    if not token:
+        token = set_album_share_token(subpath)
+        
+    if token:
+        # Construct full URL
+        base_url = request.host_url.rstrip('/')
+        encoded_path = quote(subpath, safe='/')
+        share_url = f"{base_url}/river/{encoded_path}?token={token}"
+        return jsonify({'success': True, 'share_url': share_url})
+    else:
+        return jsonify({'success': False, 'error': 'Failed to generate token'}), 500
 
 @app.route('/api/set-sort', methods=['POST'])
 @login_required
@@ -132,14 +189,10 @@ def regenerate():
     """API to clear cache and regenerate thumbnails/EXIF."""
     data = request.get_json()
     if not data:
-        # If no data, assume root or current? 
-        # But we need subpath usually. 
-        # Let's support optional subpath, default empty
         subpath = ''
     else:
         subpath = data.get('subpath', '')
         
-    # Security: ensure clean_directory_cache handles '..' or we check here
     if '..' in subpath:
          return jsonify({'success': False, 'error': 'Invalid path'}), 400
          
@@ -153,19 +206,10 @@ def regenerate():
 @app.route('/thumbnail/<path:filename>')
 def serve_thumbnail(filename):
     """Serve a thumbnail, generating it if necessary."""
-    # Ensure thumbnail exists
     thumb_path = ensure_thumbnail(filename)
     
     if thumb_path:
-        # Check if we need to force mimetype for HEIC thumbnails (stored as JPEG content)
         if filename.lower().endswith('.heic'):
-             directory = os.path.join(THUMB_ROOT, os.path.dirname(filename))
-             # We must rely on send_from_directory finding the file.
-             # Note: ensure_thumbnail returns RELATIVE path if I recall? 
-             # Let's check utils.py... NO, ensure_thumbnail returns os.path.join(THUMB_ROOT, rel_path) which is ABSOLUTE.
-             # Wait, serve_thumbnail logic in original file:
-             # directory = os.path.join(THUMB_ROOT, os.path.dirname(filename))
-             # If sending from THUMB_ROOT, filename should be relative.
              if os.path.exists(thumb_path):
                  return send_from_directory(THUMB_ROOT, filename, mimetype='image/jpeg')
 
@@ -177,15 +221,12 @@ def serve_thumbnail(filename):
 @app.route('/photo/<path:filename>')  
 def serve_photo(filename):
     """Serve the original photo."""
-    # On-the-fly conversion for HEIC
     if filename.lower().endswith('.heic'):
         full_path = os.path.join(PHOTO_ROOT, filename)
         if not os.path.exists(full_path):
              abort(404)
         try:
-            # We need to import Image and io if not present
             img = Image.open(full_path)
-            # Convert if necessary
             if img.mode in ('RGBA', 'P'):
                 img = img.convert('RGB')
                 

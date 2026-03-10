@@ -1,4 +1,5 @@
 import os
+import secrets
 from PIL import Image
 from pathlib import Path
 import configparser
@@ -134,6 +135,47 @@ def set_album_sort_config(subpath, sort_by, sort_order):
     except Exception as e:
         return False, str(e)
 
+def get_album_share_token(subpath):
+    """Get the sharing token for an album."""
+    full_dir = os.path.join(PHOTO_ROOT, subpath)
+    config_path = os.path.join(full_dir, '.ea_config.ini')
+    if os.path.exists(config_path):
+        config = configparser.ConfigParser()
+        config.read(config_path)
+        if 'Share' in config and 'token' in config['Share']:
+            return config['Share']['token']
+    return None
+
+def set_album_share_token(subpath):
+    """Generate and set a new sharing token for an album."""
+    full_dir = os.path.join(PHOTO_ROOT, subpath)
+    if not os.path.exists(full_dir):
+        return None
+    
+    config_path = os.path.join(full_dir, '.ea_config.ini')
+    config = configparser.ConfigParser()
+    
+    if os.path.exists(config_path):
+        config.read(config_path)
+        
+    if 'Share' not in config:
+        config['Share'] = {}
+        
+    token = secrets.token_urlsafe(16)
+    config['Share']['token'] = token
+    
+    try:
+        with open(config_path, 'w') as configfile:
+            config.write(configfile)
+        return token
+    except:
+        return None
+
+def verify_album_share_token(subpath, token):
+    """Verify if the token matches the one stored for the album."""
+    stored_token = get_album_share_token(subpath)
+    return stored_token is not None and stored_token == token
+
 def get_image_exif(file_path):
     """
     Extracts basic EXIF data from an image.
@@ -142,22 +184,6 @@ def get_image_exif(file_path):
     try:
         img = Image.open(file_path)
         exif = img._getexif()
-        if not exif:
-            # Even if no EXIF, we might want size? 
-            # But the function structure returns None if no EXIF. 
-            # The user wants "exif info area" to show size.
-            # If no EXIF, index.html doesn't show the block.
-            # So we should probably initialize exif_data and keys even if img._getexif() is None?
-            # But current logic returns None. 
-            # Let's stick to current logic: if no EXIF, no display. 
-            # Wait, `img._getexif()` returning None means no metadata.
-            # But modern phones/cameras usually have it.
-            # If I want to show size even for non-EXIF images, I need to change the return None to return empty dict with size.
-            # But `index.html` checks `{% if img.exif %}`. 
-            # So if I return `{'size': '...'}` it will display!
-            # So I should handle the `if not exif:` block better or just initialize `exif_data` earlier.
-            pass
-
         exif_data = {}
         
         # Get file size
@@ -176,34 +202,28 @@ def get_image_exif(file_path):
                 if decoded == 'Model':
                     exif_data['model'] = str(value).strip()
                 elif decoded == 'DateTimeOriginal':
-                    # Convert YYYY:MM:DD HH:MM:SS to YYYY/MM/DD HH:MM
                     date_str = str(value).strip()
                     if len(date_str) >= 16:
                         exif_data['date'] = date_str[:16].replace(':', '/', 2)
                     else:
                         exif_data['date'] = date_str
                 elif decoded == 'FNumber':
-                    # F-Number to 1 decimal place
                     try:
                         f_val = float(value)
                         exif_data['f_number'] = f"F{f_val:.1f}"
                     except:
                         exif_data['f_number'] = str(value)
                 elif decoded == 'ExposureTime':
-                    # Shutter speed formatting
                     try:
                         val = float(value)
                         if val >= 1:
-                            # >= 1s: integer
                             exif_data['shutter'] = f"{int(round(val))}s"
                         else:
-                            # < 1s: fraction with integer denominator, e.g. 1/200
                             denominator = int(round(1/val))
                             exif_data['shutter'] = f"1/{denominator}s"
                     except:
                         exif_data['shutter'] = str(value)
                 elif decoded == 'ISOSpeedRatings':
-                    # ISO: integer
                     try:
                         exif_data['iso'] = f"{int(value)}"
                     except:
@@ -211,11 +231,9 @@ def get_image_exif(file_path):
                 elif decoded == 'LensModel' or tag == 42036:
                     exif_data['lens'] = str(value).strip()
                 
-        # Filter for only keys we care about
         keys = ['model', 'date', 'f_number', 'shutter', 'iso', 'lens', 'size']
         return {k: exif_data[k] for k in keys if k in exif_data}
     except Exception as e:
-        # print(f"Error reading EXIF for {file_path}: {e}")
         return None
 
 def load_exif_cache(folder_path):
@@ -240,8 +258,7 @@ def clean_directory_cache(subpath):
     """
     Clears the thumbnail cache and EXIF cache for a specific directory.
     """
-    # 1. Clear thumbnails
-    if '..' in subpath: return False # Safety check
+    if '..' in subpath: return False 
     
     thumb_dir = os.path.join(THUMB_ROOT, subpath)
     if os.path.exists(thumb_dir):
@@ -250,7 +267,6 @@ def clean_directory_cache(subpath):
         except Exception as e:
             print(f"Error removing thumbs: {e}")
             
-    # 2. Clear EXIF cache
     full_path = os.path.join(PHOTO_ROOT, subpath)
     cache_path = os.path.join(full_path, '.ea_exif.json')
     if os.path.exists(cache_path):
@@ -266,7 +282,6 @@ def scan_directory(subpath=''):
     Scans a directory for folders and images.
     Returns a dictionary with 'dirs' and 'images'.
     """
-    # Prevent directory traversal
     if '..' in subpath:
         return None
     
@@ -275,8 +290,6 @@ def scan_directory(subpath=''):
         return None
 
     items = {'dirs': [], 'images': []}
-    
-    # Load EXIF cache
     exif_cache = load_exif_cache(full_path)
     cache_updated = False
     
@@ -290,39 +303,32 @@ def scan_directory(subpath=''):
                     cover = get_album_cover(entry.path)
                     items['dirs'].append({'name': entry.name, 'cover': cover})
                 elif entry.is_file() and is_image_file(entry.name):
-                    # Check cache for EXIF
                     exif_data = exif_cache.get(entry.name)
                     if exif_data is None:
-                        # Cache miss, generate
                         exif_data = get_image_exif(entry.path)
                         exif_cache[entry.name] = exif_data
                         cache_updated = True
                         
                     items['images'].append({'name': entry.name, 'exif': exif_data})
         
-        # Save cache if updated
         if cache_updated:
             save_exif_cache(full_path, exif_cache)
         
-        # 取得排序設定
         sort_by, sort_order = get_album_sort_config(full_path)
         items['sort'] = {'by': sort_by, 'order': sort_order}
 
-        # 資料夾永遠依照名稱排序
         items['dirs'].sort(key=lambda x: x['name'])
         
-        # 圖片依照設定進行排序
         reverse = (sort_order == 'desc')
         if sort_by == 'name':
             items['images'].sort(key=lambda x: x['name'].lower(), reverse=reverse)
-        else: # sort_by == 'date'
+        else:
             def get_date_key(img):
                 try:
                     if img.get('exif') and img['exif'].get('date'):
                         return img['exif']['date']
                 except Exception:
                     pass
-                # 缺乏日期時，升降序給予極值補墊排至尾端
                 return "0000/00/00 00:00" if reverse else "9999/99/99 99:99"
             
             items['images'].sort(key=get_date_key, reverse=reverse)
@@ -344,20 +350,17 @@ def ensure_thumbnail(rel_path):
     original_path = os.path.join(PHOTO_ROOT, rel_path)
     thumb_path = os.path.join(THUMB_ROOT, rel_path)
     
-    # Check if thumbnail already exists and is newer than original
     if os.path.exists(thumb_path):
         try:
             if os.path.getmtime(thumb_path) >= os.path.getmtime(original_path):
                 return thumb_path
         except OSError:
-            pass # Force regeneration if stats fail
+            pass
 
-    # Create directory for thumbnail if it doesn't exist
     os.makedirs(os.path.dirname(thumb_path), exist_ok=True)
     
     try:
         with Image.open(original_path) as img:
-            # Convert to RGB if necessary (e.g. for RGBA/P images saving as JPEG)
             if img.mode in ('RGBA', 'P'):
                 img = img.convert('RGB')
                 
