@@ -79,32 +79,146 @@
         </div>
     </nav>
 
-    <div class="photo-container px-4">
+    <div class="photo-container px-4 space-y-16">
         {% for img in images %}
-        <div class="photo-item">
-            <div class="img-wrapper">
-                <div class="img-overlay"></div>
-                <img src="/photo/{% if subpath %}{{ subpath }}/{% endif %}{{ img.name }}" alt="{{ img.name }}"
-                    loading="lazy">
+        <div class="photo-item flex flex-col md:flex-row bg-[#181a1f] rounded-xl overflow-hidden border border-gray-800 shadow-2xl max-w-5xl mx-auto">
+            <!-- 左側：圖片本體 -->
+            <div class="flex-1 bg-black flex items-center justify-center p-2 min-w-0 min-h-[300px] md:min-h-[500px] relative">
+                <div class="img-wrapper w-full h-full flex items-center justify-center">
+                    <div class="img-overlay"></div>
+                    <img src="/photo/{% if subpath %}{{ subpath }}/{% endif %}{{ img.name }}" alt="{{ img.name }}"
+                        loading="lazy" class="max-h-[75vh] object-contain shadow-lg">
+                </div>
             </div>
 
-            {% if img.exif %}
-            <div class="mt-4 text-sm text-gray-400">
-                <div class="font-medium text-gray-300 mb-1">
-                    {{ img.exif.model if img.exif.model else 'Unknown Camera' }}
-                    {% if img.exif.lens %} • {{ img.exif.lens }}{% endif %}
+            <!-- 右側：側邊欄 (EXIF 資訊面板) -->
+            <div class="w-full md:w-80 p-5 flex flex-col justify-between text-left border-t md:border-t-0 md:border-l border-gray-800 bg-[#181a1f]">
+                <div>
+
+
+                    <!-- EXIF 主要區塊 -->
+                    {% if img.exif %}
+                    <div class="space-y-4">
+                        <!-- PC 版詳細 EXIF -->
+                        <div class="hidden md:block space-y-4">
+                            <!-- 相機與鏡頭 -->
+                            <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800">
+                                <div class="flex items-center space-x-2 text-gray-300 text-xs mb-1">
+                                    <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    </svg>
+                                    <span class="font-medium text-gray-200">{{ img.exif.model if img.exif.model else '未知相機' }}</span>
+                                </div>
+                                {% if img.exif.lens %}
+                                    <div class="text-[11px] text-gray-500 pl-6 border-l border-gray-700 ml-2 mt-1 truncate" title="{{ img.exif.lens }}">{{ img.exif.lens }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- 曝光四要素儀表板 -->
+                            <div class="grid grid-cols-2 gap-2">
+                                <!-- 光圈 -->
+                                <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800 flex flex-col justify-center">
+                                    <span class="text-[10px] text-gray-500 uppercase tracking-wider">光圈</span>
+                                    <span class="text-xs font-semibold text-gray-200 mt-0.5">{{ img.exif.f_number if img.exif.f_number else '--' }}</span>
+                                </div>
+                                <!-- 快門 -->
+                                <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800 flex flex-col justify-center">
+                                    <span class="text-[10px] text-gray-500 uppercase tracking-wider">快門</span>
+                                    <span class="text-xs font-semibold text-gray-200 mt-0.5">{{ img.exif.shutter if img.exif.shutter else '--' }}</span>
+                                </div>
+                                <!-- ISO -->
+                                <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800 flex flex-col justify-center">
+                                    <span class="text-[10px] text-gray-500 uppercase tracking-wider">感光度</span>
+                                    <span class="text-xs font-semibold text-gray-200 mt-0.5">{{ 'ISO ' + img.exif.iso if img.exif.iso else '--' }}</span>
+                                </div>
+                                <!-- 大小 -->
+                                <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800 flex flex-col justify-center">
+                                    <span class="text-[10px] text-gray-500 uppercase tracking-wider">檔案大小</span>
+                                    <span class="text-xs font-semibold text-gray-200 mt-0.5">{{ img.exif.size if img.exif.size else '--' }}</span>
+                                </div>
+                            </div>
+
+                            <!-- 拍攝時間 -->
+                            {% if img.exif.date %}
+                                <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800 flex items-center space-x-3">
+                                    <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                    <div class="min-w-0">
+                                        <span class="text-[10px] text-gray-500 block uppercase tracking-wider">拍攝時間</span>
+                                        <span class="text-xs text-gray-300 font-medium">{{ img.exif.date }}</span>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- 手機版精簡 EXIF (單行流) -->
+                        <div class="block md:hidden space-y-1.5 text-left">
+                        <div class="flex flex-wrap items-center text-xs text-gray-300 gap-y-1">
+                            <div class="flex items-center space-x-1.5 mr-1.5">
+                                <svg class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                                <span class="font-bold text-gray-250 text-[12px]">{{ img.exif.model if img.exif.model else '未知相機' }}</span>
+                            </div>
+                            {% if img.exif.lens %}
+                                <span class="text-gray-400 text-[12px] flex-shrink-1"> • {{ img.exif.lens }}</span>
+                            {% endif %}
+                        </div>
+                            <div class="text-xs text-gray-300 flex flex-wrap items-center bg-[#20222b] px-2.5 py-1.5 rounded-lg border border-gray-800 font-medium">
+                                <span class="text-gray-100">{{ img.exif.f_number if img.exif.f_number else '--' }}</span>
+                                <span class="text-gray-600 font-bold mx-1.5">•</span>
+                                <span class="text-gray-100">{{ img.exif.shutter if img.exif.shutter else '--' }}</span>
+                                <span class="text-gray-600 font-bold mx-1.5">•</span>
+                                <span class="text-gray-100">{{ 'ISO ' + img.exif.iso if img.exif.iso else '--' }}</span>
+                                {% if img.exif.size %}
+                                    <span class="flex items-center">
+                                        <span class="text-gray-600 font-bold mx-1.5">•</span>
+                                        <span class="text-gray-150">{{ img.exif.size }}</span>
+                                    </span>
+                                {% endif %}
+                                {% if img.exif.date %}
+                                    <span class="flex items-center">
+                                        <span class="text-gray-600 font-bold mx-1.5">•</span>
+                                        <span class="text-gray-350">{{ img.exif.date.split(' ')[0] }}</span>
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <!-- 無 EXIF 數據 -->
+                    <div class="text-center py-4 bg-[#20222b] rounded-lg border border-gray-800 text-gray-500 text-xs">
+                        <svg class="w-6 h-6 mx-auto mb-1 text-gray-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                        此照片無 EXIF 資訊
+                    </div>
+                    {% endif %}
                 </div>
-                <div class="flex justify-center space-x-4 opacity-75">
-                    {% if img.exif.f_number %}<span>{{ img.exif.f_number }}</span>{% endif %}
-                    {% if img.exif.shutter %}<span>{{ img.exif.shutter }}</span>{% endif %}
-                    {% if img.exif.iso %}<span>ISO {{ img.exif.iso }}</span>{% endif %}
-                    {% if img.exif.date %}<span>{{ img.exif.date }}</span>{% endif %}
+
+                <!-- 下載按鈕 -->
+                <div class="pt-3 border-t border-gray-800 mt-6">
+                    <!-- PC 版下載按鈕 -->
+                    <a href="/photo/{% if subpath %}{{ subpath }}/{% endif %}{{ img.name }}" download
+                        class="hidden md:flex bg-blue-600 hover:bg-blue-700 text-white py-2.5 px-4 rounded-lg font-medium text-xs items-center justify-center shadow focus:outline-none">
+                        <svg class="w-4 h-4 mr-1.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        下載照片原檔
+                    </a>
+                    <!-- 手機版下載按鈕 -->
+                    <a href="/photo/{% if subpath %}{{ subpath }}/{% endif %}{{ img.name }}" download
+                        class="flex md:hidden bg-blue-600 hover:bg-blue-700 text-white py-1.5 px-2 rounded-lg font-medium text-[11px] items-center justify-center shadow focus:outline-none">
+                        <svg class="w-3.5 h-3.5 mr-1 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        下載原檔
+                    </a>
                 </div>
-                <div class="mt-1 text-xs opacity-50">{{ img.name }}</div>
             </div>
-            {% else %}
-            <div class="mt-2 text-xs text-gray-600">{{ img.name }}</div>
-            {% endif %}
         </div>
         {% endfor %}
     </div>

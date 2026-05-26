@@ -240,5 +240,46 @@ def serve_photo(filename):
             
     return send_from_directory(PHOTO_ROOT, filename)
 
+@app.route('/manifest.json')
+def serve_manifest():
+    return send_from_directory(os.path.join(app.root_path, 'static'), 'manifest.json')
+
+@app.route('/sw.js')
+def serve_sw():
+    return send_from_directory(os.path.join(app.root_path, 'static'), 'sw.js', mimetype='application/javascript')
+
+@app.route('/photo-view/<path:filename>')
+def photo_view(filename):
+    """View a single photo with its EXIF metadata in a responsive gallery web page."""
+    token = request.args.get('token')
+    is_public = False
+    
+    parts = filename.strip('/').split('/')
+    subpath = '/'.join(parts[:-1])
+    img_name = parts[-1]
+    
+    if token:
+        if verify_album_share_token(subpath, token):
+            is_public = True
+        else:
+            abort(403, description="Invalid sharing token")
+            
+    if not is_public and not current_user.is_authenticated:
+        return redirect(url_for('login'))
+        
+    full_path = os.path.join(PHOTO_ROOT, filename)
+    if not os.path.exists(full_path):
+        abort(404, description="Photo not found")
+        
+    from src.app.utils import get_image_exif
+    exif_data = get_image_exif(full_path)
+    
+    return render_template('photo_view.html',
+                          subpath=subpath,
+                          filename=img_name,
+                          full_filename=filename,
+                          exif=exif_data,
+                          is_public=is_public)
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5002)

@@ -317,7 +317,7 @@ def scan_directory(subpath=''):
         sort_by, sort_order = get_album_sort_config(full_path)
         items['sort'] = {'by': sort_by, 'order': sort_order}
 
-        items['dirs'].sort(key=lambda x: x['name'])
+        items['dirs'].sort(key=lambda x: x['name'], reverse=True)
         
         reverse = (sort_order == 'desc')
         if sort_by == 'name':

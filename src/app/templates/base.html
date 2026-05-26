@@ -5,8 +5,43 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>極簡相簿</title>
+    
+    <!-- PWA 配置 -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="EasyAlbum">
+    <link rel="apple-touch-icon" href="https://img.icons8.com/color/192/gallery.png">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- 註冊 Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => {
+                        console.log('Service Worker 註冊成功 Scope: ', reg.scope);
+                        
+                        // 監聽是否有新版本下載完成
+                        reg.addEventListener('updatefound', () => {
+                            const newWorker = reg.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                // 當新版 SW 安裝完成，且目前網頁已有舊版 SW 控制時，說明這是一次更新
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    console.log('[PWA] 偵測到新版本已就緒，自動更新中...');
+                                    window.location.reload();
+                                }
+                            });
+                        });
+                    })
+                    .catch(err => console.log('Service Worker 註冊失敗: ', err));
+            });
+        }
+    </script>
+
     <style>
         [x-cloak] {
             display: none !important;
