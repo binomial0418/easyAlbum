@@ -270,92 +270,160 @@
         x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
         x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100"
         x-transition:leave-end="opacity-0"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90 p-4" x-cloak
+        class="fixed inset-0 z-50 flex flex-col md:flex-row bg-[#0b0c0e] text-gray-200" x-cloak
         @keydown.escape.window="lightboxOpen = false" @keydown.arrow-left.window="prev()"
         @keydown.arrow-right.window="next()" @touchstart="touchStartX = $event.changedTouches[0].screenX"
         @touchend="touchEndX = $event.changedTouches[0].screenX; handleSwipe()">
 
-        <!-- Close button -->
-        <button @click="lightboxOpen = false" class="absolute top-4 right-4 text-white hover:text-gray-300 z-50">
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-        </button>
+        <!-- 左側：大圖與控制區 -->
+        <div class="flex-1 relative flex items-center justify-center p-4 md:p-8 min-w-0 h-[60vh] md:h-full bg-black select-none" @click="lightboxOpen = false">
+            <!-- 點擊圖片本身不關閉 -->
+            <img :src="currentImage" class="max-h-full max-w-full object-contain shadow-2xl transition duration-200" @click.stop>
 
-        <!-- Navigation -->
-        <button x-show="images.length > 1" @click="prev()"
-            class="absolute left-4 text-white hover:text-gray-300 z-50 bg-black bg-opacity-50 rounded-full p-2">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-            </svg>
-        </button>
-        <button x-show="images.length > 1" @click="next()"
-            class="absolute right-4 text-white hover:text-gray-300 z-50 bg-black bg-opacity-50 rounded-full p-2">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-            </svg>
-        </button>
+            <!-- 浮動導航按鈕 -->
+            <button x-show="images.length > 1" @click.stop="prev()"
+                class="absolute left-4 text-white hover:text-gray-300 z-40 bg-black bg-opacity-40 hover:bg-opacity-60 rounded-full p-3 transition focus:outline-none">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+            </button>
+            <button x-show="images.length > 1" @click.stop="next()"
+                class="absolute right-4 text-white hover:text-gray-300 z-40 bg-black bg-opacity-40 hover:bg-opacity-60 rounded-full p-3 transition focus:outline-none">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            </button>
 
-        <!-- Image -->
-        <img :src="currentImage" class="max-h-full max-w-full object-contain shadow-2xl" @click.stop>
+            <!-- 行動端頂部懸浮關閉按鈕 -->
+            <button @click="lightboxOpen = false" class="absolute top-4 left-4 text-white hover:text-gray-300 z-50 bg-black bg-opacity-40 hover:bg-opacity-60 rounded-full p-2 md:hidden">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
 
-        <!-- EXIF Info -->
-        <template x-if="images[currentIndex] && images[currentIndex].exif">
-            <div x-show="showInfo" x-transition:enter="transition ease-out duration-200"
-                x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
-                x-transition:leave="transition ease-in duration-150"
-                x-transition:leave-start="opacity-100 translate-y-0" x-transition:leave-end="opacity-0 translate-y-2"
-                class="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-50 bg-black bg-opacity-70 text-gray-200 text-xs md:text-sm px-4 py-3 rounded-xl border border-gray-600 backdrop-blur-md text-center max-w-[90vw] w-max pointer-events-none shadow-lg">
-                <div class="font-medium mb-1.5 whitespace-nowrap">
-                    <span x-text="images[currentIndex].exif.model || 'Unknown'"></span>
-                    <template x-if="images[currentIndex].exif.lens">
-                        <span x-text="' + ' + images[currentIndex].exif.lens"></span>
+        <!-- 右側：側邊欄 (資訊與 EXIF 面板) -->
+        <div class="w-full md:w-80 lg:w-96 bg-[#181a1f] border-t md:border-t-0 md:border-l border-gray-800 flex flex-col h-[40vh] md:h-full overflow-y-auto" @click.stop>
+            <!-- 側邊欄標題與 PC 版關閉按鈕 -->
+            <div class="p-4 border-b border-gray-800 flex items-center justify-between sticky top-0 bg-[#181a1f] z-10">
+                <div class="min-w-0 flex-1">
+                    <h3 x-text="images[currentIndex] ? images[currentIndex].name : ''" class="font-semibold text-gray-100 truncate text-sm md:text-base" :title="images[currentIndex] ? images[currentIndex].name : ''"></h3>
+                    <p class="text-xs text-gray-500 mt-0.5">EasyAlbum Photo</p>
+                </div>
+                <button @click="lightboxOpen = false" class="text-gray-400 hover:text-white transition ml-4 bg-gray-800 hover:bg-gray-700 rounded-full p-2 hidden md:block focus:outline-none">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- 資訊主要內容區 -->
+            <div class="p-5 flex-1 space-y-6">
+                <!-- EXIF Metadata 區塊 -->
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3 flex items-center">
+                        <svg class="w-4 h-4 mr-1.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A2 2 0 013 15.485V7.482a2 2 0 011.106-1.789L9 3m0 17l9.904-4.952A2 2 0 0020 13.256V5.253a2 2 0 00-1.106-1.789L13 1m-4 19v-9m0 0l-5-2.5m5 2.5l5-2.5M13 1v9m0 0l5 2.5m-5-2.5l-5 2.5"></path>
+                        </svg>
+                        EXIF 資訊
+                    </h4>
+
+                    <!-- 有 EXIF 數據時 -->
+                    <template x-if="images[currentIndex] && images[currentIndex].exif">
+                        <div class="space-y-4">
+                            <!-- 相機與鏡頭 -->
+                            <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800">
+                                <div class="flex items-center space-x-2 text-gray-300 text-xs mb-1">
+                                    <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    </svg>
+                                    <span class="font-medium text-gray-250" x-text="images[currentIndex].exif.model || '未知相機'"></span>
+                                </div>
+                                <template x-if="images[currentIndex].exif.lens">
+                                    <div class="text-[11px] text-gray-500 pl-6 border-l border-gray-700 ml-2 mt-1 truncate" x-text="images[currentIndex].exif.lens" :title="images[currentIndex].exif.lens"></div>
+                                </template>
+                            </div>
+
+                            <!-- 曝光四要素儀表板 -->
+                            <div class="grid grid-cols-2 gap-2">
+                                <!-- 光圈 -->
+                                <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800 flex flex-col justify-center">
+                                    <span class="text-[10px] text-gray-500 uppercase tracking-wider">光圈</span>
+                                    <span class="text-xs font-semibold text-gray-200 mt-0.5" x-text="images[currentIndex].exif.f_number || '--'"></span>
+                                </div>
+                                <!-- 快門 -->
+                                <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800 flex flex-col justify-center">
+                                    <span class="text-[10px] text-gray-500 uppercase tracking-wider">快門</span>
+                                    <span class="text-xs font-semibold text-gray-200 mt-0.5" x-text="images[currentIndex].exif.shutter || '--'"></span>
+                                </div>
+                                <!-- ISO -->
+                                <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800 flex flex-col justify-center">
+                                    <span class="text-[10px] text-gray-500 uppercase tracking-wider">感光度</span>
+                                    <span class="text-xs font-semibold text-gray-200 mt-0.5" x-text="images[currentIndex].exif.iso ? 'ISO ' + images[currentIndex].exif.iso : '--'"></span>
+                                </div>
+                                <!-- 大小 -->
+                                <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800 flex flex-col justify-center">
+                                    <span class="text-[10px] text-gray-500 uppercase tracking-wider">檔案大小</span>
+                                    <span class="text-xs font-semibold text-gray-200 mt-0.5" x-text="images[currentIndex].exif.size || '--'"></span>
+                                </div>
+                            </div>
+
+                            <!-- 拍攝時間 -->
+                            <template x-if="images[currentIndex].exif.date">
+                                <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800 flex items-center space-x-3">
+                                    <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                    <div class="min-w-0">
+                                        <span class="text-[10px] text-gray-500 block uppercase tracking-wider">拍攝時間</span>
+                                        <span class="text-xs text-gray-300 font-medium" x-text="images[currentIndex].exif.date"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
+                    <!-- 無 EXIF 數據 -->
+                    <template x-if="!images[currentIndex] || !images[currentIndex].exif">
+                        <div class="text-center py-8 bg-[#20222b] rounded-lg border border-gray-800 text-gray-500 text-xs">
+                            <svg class="w-8 h-8 mx-auto mb-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                            </svg>
+                            此照片無 EXIF 資訊
+                        </div>
                     </template>
                 </div>
-                <div class="flex flex-wrap justify-center gap-x-3 gap-y-1 opacity-80 text-[11px] md:text-xs">
-                    <template x-if="images[currentIndex].exif.f_number">
-                        <span x-text="'光圈: ' + images[currentIndex].exif.f_number"></span>
-                    </template>
-                    <template x-if="images[currentIndex].exif.shutter">
-                        <span x-text="'快門: ' + images[currentIndex].exif.shutter"></span>
-                    </template>
-                    <template x-if="images[currentIndex].exif.iso">
-                        <span x-text="'ISO: ' + images[currentIndex].exif.iso"></span>
-                    </template>
-                    <template x-if="images[currentIndex].exif.date">
-                        <span x-text="'拍攝日: ' + images[currentIndex].exif.date"></span>
-                    </template>
+
+                <!-- 操作區 -->
+                <div class="pt-4 border-t border-gray-800 space-y-2 mt-auto">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">操作選項</h4>
+                    
+                    <button @click.stop="shareImage()"
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-medium text-xs transition flex items-center justify-center shadow-md focus:outline-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                        </svg>
+                        分享圖片連結
+                    </button>
+
+                    <button @click.stop="setCover()"
+                        class="w-full bg-gray-800 hover:bg-gray-700 text-gray-200 py-2 px-4 rounded-lg font-medium text-xs transition flex items-center justify-center border border-gray-750 focus:outline-none">
+                        <svg class="w-4 h-4 mr-1.5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        設定為相簿封面
+                    </button>
+
+                    <a :href="currentImage" download
+                        class="w-full bg-gray-800 hover:bg-gray-700 text-gray-200 py-2 px-4 rounded-lg font-medium text-xs transition flex items-center justify-center border border-gray-750 focus:outline-none" @click.stop>
+                        <svg class="w-4 h-4 mr-1.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        下載照片原檔
+                    </a>
                 </div>
             </div>
-        </template>
-
-        <!-- Actions -->
-        <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-50 flex space-x-3">
-            <!-- Info Button -->
-            <button x-show="images[currentIndex] && images[currentIndex].exif" @click.stop="showInfo = !showInfo"
-                class="bg-white text-gray-800 p-2 rounded-full shadow hover:bg-gray-200 transition flex items-center justify-center outline-none"
-                :class="{'ring-2 ring-blue-500': showInfo}">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-            </button>
-
-            <!-- Share Image Button -->
-            <button @click.stop="shareImage()"
-                class="bg-white text-gray-800 px-4 py-2 rounded-full shadow hover:bg-gray-100 font-medium text-sm transition flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                </svg>
-                分享
-            </button>
-            <button @click.stop="setCover()"
-                class="bg-white text-gray-800 px-4 py-2 rounded-full shadow hover:bg-gray-100 font-medium text-sm transition">
-                設定為封面
-            </button>
         </div>
     </div>
 
