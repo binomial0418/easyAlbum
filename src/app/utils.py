@@ -230,8 +230,38 @@ def get_image_exif(file_path):
                         exif_data['iso'] = f"{value}"
                 elif decoded == 'LensModel' or tag == 42036:
                     exif_data['lens'] = str(value).strip()
+                elif decoded == 'FocalLength':
+                    try:
+                        focal_val = float(value)
+                        exif_data['focal_length'] = f"{focal_val:.0f}mm"
+                    except:
+                        exif_data['focal_length'] = str(value)
+                elif decoded == 'Flash':
+                    try:
+                        flash_val = int(value)
+                        if flash_val & 1:
+                            exif_data['flash'] = "已閃光"
+                        else:
+                            exif_data['flash'] = "未閃光"
+                    except:
+                        exif_data['flash'] = str(value)
+            
+            # Extract readable raw exif for modal display
+            raw_exif = {}
+            for tag, value in exif.items():
+                decoded = ExifTags.TAGS.get(tag, tag)
+                if isinstance(decoded, str) and decoded not in ('MakerNote', 'UserComment', 'PrintImageMatching', 'ComponentsConfiguration'):
+                    if isinstance(value, bytes):
+                        continue
+                    try:
+                        val_str = str(value).strip()
+                        if val_str and len(val_str) < 150:
+                            raw_exif[decoded] = val_str
+                    except:
+                        pass
+            exif_data['raw_exif'] = raw_exif
                 
-        keys = ['model', 'date', 'f_number', 'shutter', 'iso', 'lens', 'size']
+        keys = ['model', 'date', 'f_number', 'shutter', 'iso', 'lens', 'size', 'focal_length', 'flash', 'raw_exif']
         return {k: exif_data[k] for k in keys if k in exif_data}
     except Exception as e:
         return None

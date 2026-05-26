@@ -11,8 +11,9 @@
             color: #ccc;
         }
     </style>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body class="h-screen w-screen overflow-hidden flex flex-col md:flex-row">
+<body class="h-screen w-screen overflow-hidden flex flex-col md:flex-row" x-data="{ showRawExif: false }">
 
     <!-- 左側：滿版大圖區 (手機端 pb-36 置中) -->
     <div class="flex-1 relative flex items-center justify-center p-4 pb-36 md:p-8 min-w-0 h-full w-full bg-black select-none">
@@ -62,8 +63,7 @@
                                 <div class="text-[11px] text-gray-500 pl-6 border-l border-gray-700 ml-2 mt-1 truncate" title="{{ exif.lens }}">{{ exif.lens }}</div>
                             {% endif %}
                         </div>
-
-                        <!-- 曝光四要素儀表板 -->
+                        <!-- 曝光六要素儀表板 -->
                         <div class="grid grid-cols-2 gap-2">
                             <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800 flex flex-col justify-center">
                                 <span class="text-[10px] text-gray-500 uppercase tracking-wider">光圈</span>
@@ -76,6 +76,14 @@
                             <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800 flex flex-col justify-center">
                                 <span class="text-[10px] text-gray-500 uppercase tracking-wider">感光度</span>
                                 <span class="text-xs font-semibold text-gray-200 mt-0.5">{{ 'ISO ' + exif.iso if exif.iso else '--' }}</span>
+                            </div>
+                            <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800 flex flex-col justify-center">
+                                <span class="text-[10px] text-gray-500 uppercase tracking-wider">焦段</span>
+                                <span class="text-xs font-semibold text-gray-200 mt-0.5">{{ exif.focal_length if exif.focal_length else '--' }}</span>
+                            </div>
+                            <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800 flex flex-col justify-center">
+                                <span class="text-[10px] text-gray-500 uppercase tracking-wider">閃光燈</span>
+                                <span class="text-xs font-semibold text-gray-200 mt-0.5">{{ exif.flash if exif.flash else '--' }}</span>
                             </div>
                             <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800 flex flex-col justify-center">
                                 <span class="text-[10px] text-gray-500 uppercase tracking-wider">檔案大小</span>
@@ -99,12 +107,14 @@
 
                     <!-- 手機版精簡 EXIF (單行流且鏡頭完整顯示) -->
                     <div class="block md:hidden space-y-1.5 text-left">
-                        <div class="flex items-center space-x-1.5 text-xs text-gray-300">
-                            <svg class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                            </svg>
-                            <span class="font-bold text-gray-250 text-[12px]">{{ exif.model if exif.model else '未知相機' }}</span>
+                        <div class="flex flex-wrap items-center text-xs text-gray-300 gap-y-1">
+                            <div class="flex items-center space-x-1.5 mr-1.5">
+                                <svg class="w-3.5 h-3.5 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                                <span class="font-bold text-gray-250 text-[12px]">{{ exif.model if exif.model else '未知相機' }}</span>
+                            </div>
                             {% if exif.lens %}
                                 <span class="text-gray-400 text-[12px] flex-shrink-1">{{ ' • ' + exif.lens }}</span>
                             {% endif %}
@@ -115,6 +125,18 @@
                             <span class="text-gray-100">{{ exif.shutter if exif.shutter else '--' }}</span>
                             <span class="text-gray-600 font-bold mx-1.5">•</span>
                             <span class="text-gray-100">{{ 'ISO ' + exif.iso if exif.iso else '--' }}</span>
+                            {% if exif.focal_length %}
+                                <span class="flex items-center">
+                                    <span class="text-gray-600 font-bold mx-1.5">•</span>
+                                    <span class="text-gray-150">{{ exif.focal_length }}</span>
+                                </span>
+                            {% endif %}
+                            {% if exif.flash %}
+                                <span class="flex items-center">
+                                    <span class="text-gray-600 font-bold mx-1.5">•</span>
+                                    <span class="text-gray-150">{{ exif.flash }}</span>
+                                </span>
+                            {% endif %}
                             {% if exif.size %}
                                 <span class="flex items-center">
                                     <span class="text-gray-600 font-bold mx-1.5">•</span>
@@ -146,6 +168,14 @@
                 
                 <!-- PC 版下載 -->
                 <div class="hidden md:flex flex-col space-y-2">
+                    <button @click.stop="showRawExif = true"
+                        class="w-full bg-gray-800 hover:bg-gray-700 text-gray-200 py-2 px-4 rounded-lg font-medium text-xs transition flex items-center justify-center border border-gray-750 focus:outline-none">
+                        <svg class="w-4 h-4 mr-1.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        顯示完整 EXIF
+                    </button>
+
                     <a href="/photo/{{ full_filename }}" download
                         class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-medium text-xs transition flex items-center justify-center shadow focus:outline-none">
                         <svg class="w-4 h-4 mr-1.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -156,24 +186,99 @@
                 </div>
 
                 <!-- 手機版下載與返回 (並排單行) -->
-                <div class="flex md:hidden flex-row gap-2 w-full">
-                    <a href="/photo/{{ full_filename }}" download
-                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-1.5 px-1.5 rounded-lg font-medium text-[11px] transition flex items-center justify-center shadow focus:outline-none">
-                        <svg class="w-3.5 h-3.5 mr-1 text-white flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                <div class="flex md:hidden flex-col gap-2 w-full">
+                    <div class="flex flex-row gap-2 w-full">
+                        <a href="/photo/{{ full_filename }}" download
+                            class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-1.5 px-1.5 rounded-lg font-medium text-[11px] transition flex items-center justify-center shadow focus:outline-none">
+                            <svg class="w-3.5 h-3.5 mr-1 text-white flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                            </svg>
+                            <span>下載原檔</span>
+                        </a>
+                        {% if not is_public %}
+                        <a href="/album/{{ subpath }}"
+                            class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 py-1.5 px-1.5 rounded-lg font-medium text-[11px] transition flex items-center justify-center border border-gray-750 focus:outline-none">
+                            <svg class="w-3.5 h-3.5 mr-1 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                            </svg>
+                            <span>回相簿</span>
+                        </a>
+                        {% endif %}
+                    </div>
+                    
+                    <button @click.stop="showRawExif = true"
+                        class="w-full bg-gray-800 hover:bg-gray-700 text-gray-205 py-1.5 px-2 rounded-lg font-medium text-[11px] transition flex items-center justify-center border border-gray-750 focus:outline-none">
+                        <svg class="w-3.5 h-3.5 mr-1 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        <span>下載原檔</span>
-                    </a>
-                    {% if not is_public %}
-                    <a href="/album/{{ subpath }}"
-                        class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 py-1.5 px-1.5 rounded-lg font-medium text-[11px] transition flex items-center justify-center border border-gray-750 focus:outline-none">
-                        <svg class="w-3.5 h-3.5 mr-1 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                        </svg>
-                        <span>回相簿</span>
-                    </a>
-                    {% endif %}
+                        <span>顯示完整 EXIF</span>
+                    </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 完整 EXIF 資訊彈窗 (Modal) -->
+    <div x-show="showRawExif" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black bg-opacity-75 backdrop-blur-sm"
+         x-cloak
+         @click.self="showRawExif = false">
+         
+        <div class="bg-[#181a1f] border border-gray-800 rounded-xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl overflow-hidden" @click.stop>
+            <!-- 標頭 -->
+            <div class="p-4 border-b border-gray-800 flex items-center justify-between bg-black bg-opacity-20">
+                <h3 class="text-sm font-bold text-gray-200 flex items-center">
+                    <svg class="w-4 h-4 mr-1.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    完整 EXIF 資訊
+                </h3>
+                <button @click="showRawExif = false" class="text-gray-400 hover:text-white transition rounded-full p-1 bg-gray-850 hover:bg-gray-800 focus:outline-none">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- 內容 -->
+            <div class="p-4 flex-1 overflow-y-auto space-y-2 text-xs">
+                {% if exif and exif.raw_exif %}
+                    <div class="border border-gray-800 rounded-lg overflow-hidden">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-gray-900 text-gray-400 uppercase tracking-wider text-[10px] border-b border-gray-800">
+                                    <th class="p-2.5 font-bold">屬性</th>
+                                    <th class="p-2.5 font-bold">數值</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-850 text-gray-300">
+                                {% for key, val in exif.raw_exif.items() %}
+                                    <tr class="hover:bg-gray-850 transition">
+                                        <td class="p-2.5 font-medium text-gray-400 w-1/3">{{ key }}</td>
+                                        <td class="p-2.5 break-all font-mono text-[11px] text-gray-202">{{ val }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-8 text-gray-500">
+                        無詳細原始 EXIF 資訊
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- 底部 -->
+            <div class="p-3 border-t border-gray-800 text-right bg-black bg-opacity-10">
+                <button @click="showRawExif = false" class="bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-1.5 rounded-lg text-xs font-semibold transition focus:outline-none">
+                    關閉
+                </button>
             </div>
         </div>
     </div>

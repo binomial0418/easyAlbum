@@ -115,7 +115,7 @@
                                 {% endif %}
                             </div>
 
-                            <!-- 曝光四要素儀表板 -->
+                            <!-- 曝光六要素儀表板 -->
                             <div class="grid grid-cols-2 gap-2">
                                 <!-- 光圈 -->
                                 <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800 flex flex-col justify-center">
@@ -131,6 +131,16 @@
                                 <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800 flex flex-col justify-center">
                                     <span class="text-[10px] text-gray-500 uppercase tracking-wider">感光度</span>
                                     <span class="text-xs font-semibold text-gray-200 mt-0.5">{{ 'ISO ' + img.exif.iso if img.exif.iso else '--' }}</span>
+                                </div>
+                                <!-- 焦段 -->
+                                <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800 flex flex-col justify-center">
+                                    <span class="text-[10px] text-gray-500 uppercase tracking-wider">焦段</span>
+                                    <span class="text-xs font-semibold text-gray-200 mt-0.5">{{ img.exif.focal_length if img.exif.focal_length else '--' }}</span>
+                                </div>
+                                <!-- 閃光燈 -->
+                                <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800 flex flex-col justify-center">
+                                    <span class="text-[10px] text-gray-500 uppercase tracking-wider">閃光燈</span>
+                                    <span class="text-xs font-semibold text-gray-200 mt-0.5">{{ img.exif.flash if img.exif.flash else '--' }}</span>
                                 </div>
                                 <!-- 大小 -->
                                 <div class="bg-[#20222b] p-3 rounded-lg border border-gray-800 flex flex-col justify-center">
@@ -173,6 +183,18 @@
                                 <span class="text-gray-100">{{ img.exif.shutter if img.exif.shutter else '--' }}</span>
                                 <span class="text-gray-600 font-bold mx-1.5">•</span>
                                 <span class="text-gray-100">{{ 'ISO ' + img.exif.iso if img.exif.iso else '--' }}</span>
+                                {% if img.exif.focal_length %}
+                                    <span class="flex items-center">
+                                        <span class="text-gray-600 font-bold mx-1.5">•</span>
+                                        <span class="text-gray-150">{{ img.exif.focal_length }}</span>
+                                    </span>
+                                {% endif %}
+                                {% if img.exif.flash %}
+                                    <span class="flex items-center">
+                                        <span class="text-gray-600 font-bold mx-1.5">•</span>
+                                        <span class="text-gray-150">{{ img.exif.flash }}</span>
+                                    </span>
+                                {% endif %}
                                 {% if img.exif.size %}
                                     <span class="flex items-center">
                                         <span class="text-gray-600 font-bold mx-1.5">•</span>
@@ -182,7 +204,7 @@
                                 {% if img.exif.date %}
                                     <span class="flex items-center">
                                         <span class="text-gray-600 font-bold mx-1.5">•</span>
-                                        <span class="text-gray-350">{{ img.exif.date.split(' ')[0] }}</span>
+                                        <span class="text-gray-300">{{ img.exif.date.split(' ')[0] }}</span>
                                     </span>
                                 {% endif %}
                             </div>
