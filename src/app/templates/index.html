@@ -2,12 +2,17 @@
 
 {% block content %}
 <div x-data="{ 
-    lightboxOpen: false, 
-    currentImage: '', 
+    lightboxOpen: false,
+    currentImage: '',
     currentIndex: 0,
     showInfo: false,
-    isTransitioning: false,
     showRawExif: false,
+    trackDragPx: 0,
+    swipeSettling: false,
+    swipeIsDragging: false,
+    swipeStartX: 0,
+    swipeWidth: 0,
+    swipedRecently: false,
     sortBy: '{{ sort.by if sort else 'date' }}',
     sortOrder: '{{ sort.order if sort else 'asc' }}',
     async updateSort() {
@@ -38,36 +43,75 @@
           name: '{{ img.name | replace("'", "\\'") }}',
           exif: {{ img.exif | tojson | forceescape if img.exif else 'null' }} 
         }, {% endfor %} ],
-    openLightbox(index) { 
-        this.currentIndex = index; 
-        this.currentImage = this.images[index].src; 
-        this.lightboxOpen = true; 
-        this.showInfo = false; 
-        this.isTransitioning = false; 
+    openLightbox(index) {
+        this.currentIndex = index;
+        this.currentImage = this.images[index].src;
+        this.lightboxOpen = true;
+        this.showInfo = false;
+        this.trackDragPx = 0;
+        this.swipeIsDragging = false;
+        this.swipeSettling = false;
     },
-    next() { 
-        if (this.currentIndex < this.images.length - 1) { 
-            this.isTransitioning = true;
+    _slideGo(dir) {
+        const w = this.$refs.imgArea?.offsetWidth || window.innerWidth;
+        this.swipeIsDragging = false;
+        this.trackDragPx = dir === 'next' ? -w : w;
+        setTimeout(() => {
+            this.swipeSettling = true;
+            if (dir === 'next') { this.currentIndex++; } else { this.currentIndex--; }
+            this.currentImage = this.images[this.currentIndex].src;
+            this.trackDragPx = 0;
+            requestAnimationFrame(() => requestAnimationFrame(() => { this.swipeSettling = false; }));
+        }, 320);
+    },
+    next() {
+        if (this.currentIndex < this.images.length - 1) this._slideGo('next');
+    },
+    prev() {
+        if (this.currentIndex > 0) this._slideGo('prev');
+    },
+    swipeStart(e) {
+        this.swipeStartX = e.touches[0].clientX;
+        this.swipeIsDragging = true;
+        this.swipeWidth = e.currentTarget.offsetWidth;
+    },
+    swipeMove(e) {
+        if (!this.swipeIsDragging) return;
+        const dx = e.touches[0].clientX - this.swipeStartX;
+        const atStart = this.currentIndex === 0;
+        const atEnd = this.currentIndex === this.images.length - 1;
+        this.trackDragPx = ((dx > 0 && atStart) || (dx < 0 && atEnd)) ? dx * 0.15 : dx;
+    },
+    swipeEnd() {
+        if (!this.swipeIsDragging) return;
+        this.swipeIsDragging = false;
+        const moved = Math.abs(this.trackDragPx);
+        const threshold = this.swipeWidth * 0.25;
+        if (moved > 10) {
+            this.swipedRecently = true;
+            setTimeout(() => { this.swipedRecently = false; }, 500);
+        }
+        if (this.trackDragPx < -threshold && this.currentIndex < this.images.length - 1) {
+            this.trackDragPx = -this.swipeWidth;
             setTimeout(() => {
+                this.swipeSettling = true;
                 this.currentIndex++;
                 this.currentImage = this.images[this.currentIndex].src;
-            }, 150);
-        } 
-    }, 
-    prev() { 
-        if (this.currentIndex > 0) { 
-            this.isTransitioning = true;
+                this.trackDragPx = 0;
+                requestAnimationFrame(() => requestAnimationFrame(() => { this.swipeSettling = false; }));
+            }, 320);
+        } else if (this.trackDragPx > threshold && this.currentIndex > 0) {
+            this.trackDragPx = this.swipeWidth;
             setTimeout(() => {
+                this.swipeSettling = true;
                 this.currentIndex--;
                 this.currentImage = this.images[this.currentIndex].src;
-            }, 150);
+                this.trackDragPx = 0;
+                requestAnimationFrame(() => requestAnimationFrame(() => { this.swipeSettling = false; }));
+            }, 320);
+        } else {
+            this.trackDragPx = 0;
         }
-    },
-    touchStartX: 0,
-    touchEndX: 0,
-    handleSwipe() {
-        if (this.touchEndX < this.touchStartX - 50) this.next();
-        if (this.touchEndX > this.touchStartX + 50) this.prev();
     },
     async regenerate() {
         if (!confirm('Reload and rescan all photos in this folder? This will regenerate thumbnails.')) return;
@@ -352,34 +396,57 @@
         x-transition:leave-end="opacity-0"
         class="fixed inset-0 z-50 flex flex-col md:flex-row bg-[#0b0c0e] text-gray-200" x-cloak
         @keydown.escape.window="lightboxOpen = false" @keydown.arrow-left.window="prev()"
-        @keydown.arrow-right.window="next()" @touchstart="touchStartX = $event.changedTouches[0].screenX"
-        @touchend="touchEndX = $event.changedTouches[0].screenX; handleSwipe()">
+        @keydown.arrow-right.window="next()">
 
         <!-- 左側：大圖與控制區 -->
-        <div class="flex-1 min-h-0 relative flex items-center justify-center p-4 md:p-8 min-w-0 w-full bg-black select-none" @click="lightboxOpen = false">
-            <!-- 點擊圖片本身不關閉 -->
-            <img :src="currentImage"
-                 :class="isTransitioning ? 'opacity-0 scale-[0.98]' : 'opacity-100 scale-100'"
-                 class="max-h-full max-w-full object-contain shadow-2xl transition-all duration-200 ease-out"
-                 @load="isTransitioning = false"
-                 @click.stop>
+        <div class="flex-1 min-h-0 relative overflow-hidden bg-black select-none"
+             x-ref="imgArea"
+             @click="if (!swipedRecently) lightboxOpen = false"
+             @touchstart="swipeStart($event)"
+             @touchmove.prevent="swipeMove($event)"
+             @touchend="swipeEnd()">
 
-            <!-- 浮動導航按鈕 -->
+            <!-- 前一張：定在左側 -100%，隨 trackDragPx 位移 -->
+            <div class="absolute inset-0 flex items-center justify-center p-4 md:p-8"
+                 :style="`transform: translateX(calc(-100% + ${trackDragPx}px)); transition: ${(!swipeIsDragging && !swipeSettling) ? 'transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)' : 'none'};`">
+                <img :src="currentIndex > 0 ? images[currentIndex - 1].src : ''"
+                     class="max-h-full max-w-full object-contain"
+                     draggable="false" @click.stop>
+            </div>
+
+            <!-- 目前：定在中央 0，隨 trackDragPx 位移 -->
+            <div class="absolute inset-0 flex items-center justify-center p-4 md:p-8"
+                 :style="`transform: translateX(${trackDragPx}px); transition: ${(!swipeIsDragging && !swipeSettling) ? 'transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)' : 'none'};`">
+                <img :src="currentImage"
+                     class="max-h-full max-w-full object-contain shadow-2xl"
+                     draggable="false" @click.stop>
+            </div>
+
+            <!-- 後一張：定在右側 +100%，隨 trackDragPx 位移 -->
+            <div class="absolute inset-0 flex items-center justify-center p-4 md:p-8"
+                 :style="`transform: translateX(calc(100% + ${trackDragPx}px)); transition: ${(!swipeIsDragging && !swipeSettling) ? 'transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)' : 'none'};`">
+                <img :src="currentIndex < images.length - 1 ? images[currentIndex + 1].src : ''"
+                     class="max-h-full max-w-full object-contain"
+                     draggable="false" @click.stop>
+            </div>
+
+            <!-- 桌機版導航按鈕 -->
             <button x-show="images.length > 1" @click.stop="prev()"
-                class="absolute left-4 text-white hover:text-gray-300 z-40 bg-black bg-opacity-40 hover:bg-opacity-60 rounded-full p-3 transition focus:outline-none">
+                class="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 z-40 bg-black bg-opacity-40 hover:bg-opacity-60 rounded-full p-3 transition focus:outline-none hidden md:flex">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                 </svg>
             </button>
             <button x-show="images.length > 1" @click.stop="next()"
-                class="absolute right-4 text-white hover:text-gray-300 z-40 bg-black bg-opacity-40 hover:bg-opacity-60 rounded-full p-3 transition focus:outline-none">
+                class="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 z-40 bg-black bg-opacity-40 hover:bg-opacity-60 rounded-full p-3 transition focus:outline-none hidden md:flex">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                 </svg>
             </button>
 
-            <!-- 行動端頂部懸浮關閉按鈕 -->
-            <button @click="lightboxOpen = false" class="absolute top-4 left-4 text-white hover:text-gray-300 z-50 bg-black bg-opacity-40 hover:bg-opacity-60 rounded-full p-2 md:hidden">
+            <!-- 手機版關閉按鈕 -->
+            <button @click.stop="lightboxOpen = false"
+                class="absolute top-4 left-4 text-white hover:text-gray-300 z-50 bg-black bg-opacity-40 hover:bg-opacity-60 rounded-full p-2 md:hidden">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
