@@ -1,4 +1,4 @@
-const CACHE_NAME = 'easyalbum-v1.0.2';
+const CACHE_NAME = 'easyalbum-v1.0.4';
 const ASSETS_TO_CACHE = [
   '/',
   '/login',
