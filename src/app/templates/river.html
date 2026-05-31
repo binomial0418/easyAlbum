@@ -84,7 +84,7 @@
         <div class="photo-item flex flex-col md:flex-row bg-[#181a1f] rounded-xl overflow-hidden border border-gray-800 shadow-2xl max-w-5xl mx-auto">
             <!-- 左側：圖片本體 -->
             <div class="flex-1 bg-black flex items-center justify-center p-2 min-w-0 min-h-[300px] md:min-h-[500px] relative">
-                <div class="img-wrapper w-full h-full flex items-center justify-center">
+                <div class="img-wrapper w-full md:h-full flex items-center justify-center">
                     <div class="img-overlay"></div>
                     <img src="/photo/{% if subpath %}{{ subpath }}/{% endif %}{{ img.name }}" alt="{{ img.name }}"
                         loading="lazy" class="max-h-[75vh] object-contain shadow-lg">

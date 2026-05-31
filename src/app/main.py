@@ -109,6 +109,8 @@ def river_view(subpath=''):
     cover_filename = get_album_cover(full_dir)
     if cover_filename:
         base_url = request.host_url.rstrip('/')
+        if base_url.startswith('http://'):
+            base_url = base_url.replace('http://', 'https://', 1)
         encoded_cover_path = quote(
             (subpath + '/' + cover_filename).lstrip('/'), safe='/'
         )
@@ -137,6 +139,8 @@ def share_link():
     if token:
         # Construct full URL
         base_url = request.host_url.rstrip('/')
+        if base_url.startswith('http://'):
+            base_url = base_url.replace('http://', 'https://', 1)
         encoded_path = quote(subpath, safe='/')
         share_url = f"{base_url}/river/{encoded_path}?token={token}"
         return jsonify({'success': True, 'share_url': share_url})
