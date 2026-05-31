@@ -86,7 +86,7 @@
         if (!this.swipeIsDragging) return;
         this.swipeIsDragging = false;
         const moved = Math.abs(this.trackDragPx);
-        const threshold = this.swipeWidth * 0.25;
+        const threshold = this.swipeWidth * 0.05;
         if (moved > 10) {
             this.swipedRecently = true;
             setTimeout(() => { this.swipedRecently = false; }, 500);
