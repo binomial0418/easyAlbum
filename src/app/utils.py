@@ -369,6 +369,38 @@ def scan_directory(subpath=''):
         
     return items
 
+VISITOR_CONFIG_FILE = '.ea_visitor.json'
+
+def get_visitor_albums():
+    """Get the list of top-level albums accessible in visitor mode."""
+    config_path = os.path.join(PHOTO_ROOT, VISITOR_CONFIG_FILE)
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return data.get('allowed_albums', [])
+        except Exception:
+            pass
+    return []
+
+def set_visitor_albums(album_list):
+    """Set the list of top-level albums accessible in visitor mode."""
+    config_path = os.path.join(PHOTO_ROOT, VISITOR_CONFIG_FILE)
+    try:
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump({'allowed_albums': album_list}, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        print(f"Error saving visitor config: {e}")
+        return False
+
+def is_visitor_accessible(subpath, allowed_albums):
+    """Check if a subpath is accessible in visitor mode (based on top-level directory)."""
+    if not subpath:
+        return True
+    first_component = subpath.strip('/').split('/')[0]
+    return first_component in allowed_albums
+
 def ensure_thumbnail(rel_path):
     """
     Ensures a thumbnail exists for the given image path (relative to PHOTO_ROOT).
