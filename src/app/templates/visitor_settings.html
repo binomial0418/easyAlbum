@@ -1,37 +1,42 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div x-data="{
-    selected: {{ allowed_albums | tojson }},
-    saving: false,
-    saved: false,
-    toggle(name) {
-        const idx = this.selected.indexOf(name);
-        if (idx >= 0) { this.selected.splice(idx, 1); }
-        else { this.selected.push(name); }
-    },
-    isSelected(name) {
-        return this.selected.includes(name);
-    },
-    async save() {
-        this.saving = true;
-        this.saved = false;
-        try {
-            const res = await fetch('/api/set-visitor-albums', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ albums: this.selected })
-            });
-            const data = await res.json();
-            if (data.success) { this.saved = true; setTimeout(() => { this.saved = false; }, 3000); }
-            else { alert('儲存失敗：' + data.error); }
-        } catch(e) {
-            alert('發生錯誤：' + e);
-        } finally {
-            this.saving = false;
+<script>
+function visitorSettingsData() {
+    return {
+        selected: {{ allowed_albums | tojson }},
+        saving: false,
+        saved: false,
+        toggle(name) {
+            const idx = this.selected.indexOf(name);
+            if (idx >= 0) { this.selected.splice(idx, 1); }
+            else { this.selected.push(name); }
+        },
+        isSelected(name) {
+            return this.selected.includes(name);
+        },
+        async save() {
+            this.saving = true;
+            this.saved = false;
+            try {
+                const res = await fetch('/api/set-visitor-albums', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ albums: this.selected })
+                });
+                const data = await res.json();
+                if (data.success) { this.saved = true; setTimeout(() => { this.saved = false; }, 3000); }
+                else { alert('儲存失敗：' + data.error); }
+            } catch(e) {
+                alert('發生錯誤：' + e);
+            } finally {
+                this.saving = false;
+            }
         }
-    }
-}">
+    };
+}
+</script>
+<div x-data="visitorSettingsData()">
 
     <!-- 頁面標題與說明 -->
     <div class="mb-6">

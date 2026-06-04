@@ -303,7 +303,7 @@
         <!-- 右側：EXIF 資訊側邊欄（訪客模式：只顯示 EXIF，無操作按鈕） -->
         <div class="w-full md:w-80 lg:w-96 bg-[#181a1f] border-t md:border-t-0 md:border-l border-gray-800 flex flex-col flex-shrink-0 md:flex-shrink md:h-full overflow-y-auto z-50" @click.stop>
             <div class="p-3 md:p-5 flex-1 space-y-3 md:space-y-6">
-                <div>
+                <div class="hidden md:block">
                     <div class="flex items-center justify-between pb-2 border-b border-gray-800 mb-4">
                         <h4 class="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center">
                             <svg class="w-4 h-4 mr-1.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -422,8 +422,8 @@
                     </template>
                 </div>
 
-                <!-- 操作區：訪客模式只保留顯示完整 EXIF -->
-                <div class="pt-3 border-t border-gray-800 mt-auto">
+                <!-- 操作區：訪客模式在手機版只保留下載照片與詳細 EXIF，電腦版不變 -->
+                <div class="pt-0 md:pt-3 border-t-0 md:border-t border-gray-800 md:mt-auto">
                     <div class="hidden md:flex flex-col space-y-2">
                         <button @click.stop="showRawExif = true"
                             class="w-full bg-gray-800 hover:bg-gray-700 text-gray-200 py-2 px-4 rounded-lg font-medium text-xs transition flex items-center justify-center border border-gray-750 focus:outline-none">
@@ -433,13 +433,20 @@
                             顯示完整 EXIF
                         </button>
                     </div>
-                    <div class="flex md:hidden">
+                    <div class="flex md:hidden flex-row gap-2 w-full">
+                        <a :href="currentImage" download
+                            class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-3 rounded-lg font-medium text-xs transition flex items-center justify-center shadow focus:outline-none">
+                            <svg class="w-4 h-4 mr-1 text-white flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                            </svg>
+                            <span>下載照片</span>
+                        </a>
                         <button @click.stop="showRawExif = true"
-                            class="w-full bg-gray-800 hover:bg-gray-700 text-gray-200 py-1.5 px-2 rounded-lg font-medium text-[11px] transition flex items-center justify-center border border-gray-750 focus:outline-none">
-                            <svg class="w-3.5 h-3.5 mr-1 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-200 py-2 px-3 rounded-lg font-medium text-xs transition flex items-center justify-center border border-gray-750 focus:outline-none">
+                            <svg class="w-4 h-4 mr-1.5 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
-                            顯示完整 EXIF
+                            <span>詳細 EXIF</span>
                         </button>
                     </div>
                 </div>
