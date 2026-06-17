@@ -221,6 +221,15 @@
                 <div id="save-tip" class="hidden text-xs text-center text-slate-400 mt-2 md:mt-3">
                     💡 長按預覽圖可選擇「加入照片」直接儲存至相簿
                 </div>
+                <!-- 捷徑橋接：貼上區域（?clip=1 時顯示） -->
+                <div id="clip-zone" class="hidden mt-2">
+                    <div id="paste-target" contenteditable="true"
+                         class="w-full py-3 rounded-xl border-2 border-dashed border-teal-500/50 text-teal-300 text-xs text-center cursor-pointer select-none outline-none bg-teal-500/5 active:bg-teal-500/10"
+                         onclick="this.focus()"
+                         onkeydown="return false">
+                        📋 長按此處 → 點「貼上」匯入照片
+                    </div>
+                </div>
             </div>
 
         </div>
@@ -341,6 +350,37 @@
         fileInput.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
                 handleFile(e.target.files[0]);
+            }
+        });
+
+        // 全域 paste 事件（捷徑橋接 + 一般鍵盤貼上）
+        document.addEventListener('paste', (e) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (file) {
+                        // 貼上成功，隱藏貼上區域
+                        document.getElementById('clip-zone')?.classList.add('hidden');
+                        handleFile(file);
+                        return;
+                    }
+                }
+            }
+        });
+
+        // 頁面載入後檢查是否由捷徑開啟
+        window.addEventListener('load', () => {
+            if (new URLSearchParams(location.search).get('clip') === '1') {
+                const zone = document.getElementById('clip-zone');
+                if (zone) {
+                    zone.classList.remove('hidden');
+                    // 自動 focus 貼上區域，讓 iOS 顯示貼上選單
+                    setTimeout(() => {
+                        document.getElementById('paste-target')?.focus();
+                    }, 600);
+                }
             }
         });
 
@@ -654,9 +694,7 @@
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
                     try {
                         await navigator.share({
-                            files: [file],
-                            title: '浮水印相片',
-                            text: '浮水印與相片處理工具處理完成的圖片'
+                            files: [file]
                         });
                     } catch (err) {
                         console.log('分享取消或發生錯誤:', err);
