@@ -5,7 +5,7 @@ from PIL import Image
 from flask import Flask, render_template, send_from_directory, abort, request, jsonify, send_file, redirect, url_for, flash
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash
-from src.app.utils import scan_directory, ensure_thumbnail, set_album_cover, set_album_sort_config, clean_directory_cache, PHOTO_ROOT, THUMB_ROOT, get_album_share_token, set_album_share_token, verify_album_share_token, get_album_cover, get_visitor_albums, set_visitor_albums, is_visitor_accessible
+from src.app.utils import scan_directory, ensure_thumbnail, set_album_cover, set_album_sort_config, clean_directory_cache, PHOTO_ROOT, THUMB_ROOT, get_album_share_token, set_album_share_token, verify_album_share_token, get_album_cover, get_visitor_albums, set_visitor_albums, is_visitor_accessible, create_album, rename_album, delete_album, save_uploaded_photos
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-please-change')
@@ -206,6 +206,69 @@ def regenerate():
         return jsonify({'success': True})
     else:
         return jsonify({'success': False, 'error': 'Failed to clean cache'}), 500
+
+@app.route('/api/create-album', methods=['POST'])
+@login_required
+def create_album_api():
+    """API to create a new sub-album (folder) inside the given album."""
+    data = request.get_json()
+    if not data or 'name' not in data:
+        return jsonify({'success': False, 'error': 'Missing parameters'}), 400
+
+    parent = data.get('subpath', '')
+    success, message = create_album(parent, data['name'])
+
+    if success:
+        return jsonify({'success': True, 'name': message})
+    else:
+        return jsonify({'success': False, 'error': message}), 400
+
+@app.route('/api/rename-album', methods=['POST'])
+@login_required
+def rename_album_api():
+    """API to rename an album (folder)."""
+    data = request.get_json()
+    if not data or 'subpath' not in data or 'new_name' not in data:
+        return jsonify({'success': False, 'error': 'Missing parameters'}), 400
+
+    success, message = rename_album(data['subpath'], data['new_name'])
+
+    if success:
+        return jsonify({'success': True, 'new_name': message})
+    else:
+        return jsonify({'success': False, 'error': message}), 400
+
+@app.route('/api/delete-album', methods=['POST'])
+@login_required
+def delete_album_api():
+    """API to delete an album (folder) and its contents."""
+    data = request.get_json()
+    if not data or 'subpath' not in data:
+        return jsonify({'success': False, 'error': 'Missing parameters'}), 400
+
+    success, message = delete_album(data['subpath'])
+
+    if success:
+        return jsonify({'success': True})
+    else:
+        return jsonify({'success': False, 'error': message}), 400
+
+@app.route('/api/upload', methods=['POST'])
+@login_required
+def upload_api():
+    """API to upload one or more photos into an album."""
+    subpath = request.form.get('subpath', '')
+    files = request.files.getlist('files')
+
+    if not files:
+        return jsonify({'success': False, 'error': '沒有選擇任何檔案'}), 400
+
+    saved, errors = save_uploaded_photos(subpath, files)
+
+    if saved == 0 and errors:
+        return jsonify({'success': False, 'error': '上傳失敗', 'errors': errors}), 400
+
+    return jsonify({'success': True, 'saved': saved, 'errors': errors})
 
 @app.route('/thumbnail/<path:filename>')
 def serve_thumbnail(filename):

@@ -401,6 +401,157 @@ def is_visitor_accessible(subpath, allowed_albums):
     first_component = subpath.strip('/').split('/')[0]
     return first_component in allowed_albums
 
+def _is_safe_name(name):
+    """Validate a single path component (a folder or file name)."""
+    if not name:
+        return False
+    name = name.strip()
+    if not name:
+        return False
+    if '/' in name or '\\' in name or '..' in name:
+        return False
+    if name.startswith('.'):
+        return False
+    return True
+
+def create_album(parent_subpath, name):
+    """Create a new sub-album (directory) named `name` inside parent_subpath."""
+    if '..' in parent_subpath:
+        return False, "Invalid path"
+
+    name = (name or '').strip()
+    if not _is_safe_name(name):
+        return False, "相簿名稱不合法"
+
+    parent_dir = os.path.join(PHOTO_ROOT, parent_subpath)
+    if not os.path.isdir(parent_dir):
+        return False, "Parent directory not found"
+
+    new_dir = os.path.join(parent_dir, name)
+    if os.path.exists(new_dir):
+        return False, "同名相簿已存在"
+
+    try:
+        os.makedirs(new_dir)
+        return True, name
+    except Exception as e:
+        return False, str(e)
+
+def rename_album(subpath, new_name):
+    """Rename an album directory and move its thumbnail cache."""
+    if not subpath or '..' in subpath:
+        return False, "Invalid path"
+
+    new_name = (new_name or '').strip()
+    if not _is_safe_name(new_name):
+        return False, "相簿名稱不合法"
+
+    old_dir = os.path.join(PHOTO_ROOT, subpath)
+    if not os.path.isdir(old_dir):
+        return False, "相簿不存在"
+
+    parent_dir = os.path.dirname(old_dir)
+    new_dir = os.path.join(parent_dir, new_name)
+    if os.path.abspath(new_dir) == os.path.abspath(old_dir):
+        return True, new_name
+    if os.path.exists(new_dir):
+        return False, "同名相簿已存在"
+
+    try:
+        os.rename(old_dir, new_dir)
+    except Exception as e:
+        return False, str(e)
+
+    # Move the thumbnail cache so it stays in sync with the album
+    old_thumb = os.path.join(THUMB_ROOT, subpath)
+    if os.path.exists(old_thumb):
+        new_thumb = os.path.join(os.path.dirname(old_thumb), new_name)
+        try:
+            if os.path.exists(new_thumb):
+                shutil.rmtree(new_thumb)
+            os.rename(old_thumb, new_thumb)
+        except Exception as e:
+            print(f"Error moving thumbnail cache: {e}")
+
+    # Keep the visitor-accessible list in sync for top-level renames
+    old_name = subpath.strip('/').split('/')[-1]
+    if '/' not in subpath.strip('/'):
+        allowed = get_visitor_albums()
+        if old_name in allowed:
+            allowed = [new_name if a == old_name else a for a in allowed]
+            set_visitor_albums(allowed)
+
+    return True, new_name
+
+def delete_album(subpath):
+    """Delete an album directory (and its contents) and its thumbnail cache."""
+    if not subpath or '..' in subpath:
+        return False, "Invalid path"
+
+    target_dir = os.path.join(PHOTO_ROOT, subpath)
+    if not os.path.isdir(target_dir):
+        return False, "相簿不存在"
+
+    try:
+        shutil.rmtree(target_dir)
+    except Exception as e:
+        return False, str(e)
+
+    # Remove the thumbnail cache as well
+    thumb_dir = os.path.join(THUMB_ROOT, subpath)
+    if os.path.exists(thumb_dir):
+        try:
+            shutil.rmtree(thumb_dir)
+        except Exception as e:
+            print(f"Error removing thumbnail cache: {e}")
+
+    # Keep the visitor-accessible list in sync for top-level deletes
+    name = subpath.strip('/').split('/')[-1]
+    if '/' not in subpath.strip('/'):
+        allowed = get_visitor_albums()
+        if name in allowed:
+            set_visitor_albums([a for a in allowed if a != name])
+
+    return True, name
+
+def save_uploaded_photos(subpath, files):
+    """Save uploaded image files into the album directory.
+
+    Returns (saved_count, errors_list).
+    """
+    if '..' in subpath:
+        return 0, ["Invalid path"]
+
+    target_dir = os.path.join(PHOTO_ROOT, subpath)
+    if not os.path.isdir(target_dir):
+        return 0, ["相簿不存在"]
+
+    saved = 0
+    errors = []
+    for f in files:
+        raw_name = (f.filename or '').replace('\\', '/').split('/')[-1]
+        if not raw_name:
+            continue
+        if raw_name.startswith('.') or not is_image_file(raw_name):
+            errors.append(f"{raw_name}: 非支援的圖片格式")
+            continue
+
+        # Avoid overwriting existing files by adding a numeric suffix
+        dest = os.path.join(target_dir, raw_name)
+        base, ext = os.path.splitext(raw_name)
+        counter = 1
+        while os.path.exists(dest):
+            dest = os.path.join(target_dir, f"{base}_{counter}{ext}")
+            counter += 1
+
+        try:
+            f.save(dest)
+            saved += 1
+        except Exception as e:
+            errors.append(f"{raw_name}: {e}")
+
+    return saved, errors
+
 def ensure_thumbnail(rel_path):
     """
     Ensures a thumbnail exists for the given image path (relative to PHOTO_ROOT).

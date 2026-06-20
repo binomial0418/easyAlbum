@@ -13,6 +13,7 @@
     swipeStartX: 0,
     swipeWidth: 0,
     swipedRecently: false,
+    uploading: false,
     sortBy: '{{ sort.by if sort else 'date' }}',
     sortOrder: '{{ sort.order if sort else 'asc' }}',
     async updateSort() {
@@ -212,6 +213,110 @@
         } catch (e) {
             alert('發生錯誤: ' + e);
         }
+    },
+    async createAlbum() {
+        const name = prompt('請輸入新相簿名稱：');
+        if (name === null) return;
+        const trimmed = name.trim();
+        if (!trimmed) { alert('相簿名稱不可為空'); return; }
+        try {
+            const response = await fetch('/api/create-album', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ subpath: '{{ subpath }}', name: trimmed })
+            });
+            const data = await response.json();
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('建立相簿失敗：' + (data.error || '未知錯誤'));
+            }
+        } catch (e) {
+            alert('發生錯誤：' + e);
+        }
+    },
+    async deleteAlbum() {
+        if (!confirm('確定要刪除本相簿嗎？此操作將永久刪除相簿內所有照片，無法復原！')) return;
+        try {
+            const response = await fetch('/api/delete-album', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ subpath: '{{ subpath }}' })
+            });
+            const data = await response.json();
+            if (data.success) {
+                const parts = '{{ subpath }}'.split('/');
+                parts.pop();
+                window.location.href = '/album/' + parts.map(encodeURIComponent).join('/');
+            } else {
+                alert('刪除相簿失敗：' + (data.error || '未知錯誤'));
+            }
+        } catch (e) {
+            alert('發生錯誤：' + e);
+        }
+    },
+    async renameAlbum() {
+        const newName = prompt('請輸入相簿新名稱：（輸入 del 刪除本相簿）', '{{ (breadcrumbs[-1].name if breadcrumbs else "") | replace("'", "\\'") }}');
+        if (newName === null) return;
+        const trimmed = newName.trim();
+        if (!trimmed) { alert('名稱不可為空'); return; }
+        if (trimmed === 'del') {
+            await this.deleteAlbum();
+            return;
+        }
+        try {
+            const response = await fetch('/api/rename-album', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ subpath: '{{ subpath }}', new_name: trimmed })
+            });
+            const data = await response.json();
+            if (data.success) {
+                const parts = '{{ subpath }}'.split('/');
+                parts[parts.length - 1] = data.new_name;
+                window.location.href = '/album/' + parts.map(encodeURIComponent).join('/');
+            } else {
+                alert('相簿更名失敗：' + (data.error || '未知錯誤'));
+            }
+        } catch (e) {
+            alert('發生錯誤：' + e);
+        }
+    },
+    async uploadPhotos(event) {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+        const formData = new FormData();
+        formData.append('subpath', '{{ subpath }}');
+        for (const f of files) {
+            formData.append('files', f);
+        }
+        this.uploading = true;
+        try {
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            if (data.success) {
+                let msg = `成功上傳 ${data.saved} 張照片`;
+                if (data.errors && data.errors.length) {
+                    msg += '\n\n部分檔案未上傳：\n' + data.errors.join('\n');
+                }
+                alert(msg);
+                location.reload();
+            } else {
+                let msg = '上傳失敗：' + (data.error || '未知錯誤');
+                if (data.errors && data.errors.length) {
+                    msg += '\n' + data.errors.join('\n');
+                }
+                alert(msg);
+            }
+        } catch (e) {
+            alert('上傳發生錯誤：' + e);
+        } finally {
+            this.uploading = false;
+            event.target.value = '';
+        }
     }
     }">
 
@@ -248,14 +353,69 @@
         {% endif %}
     </nav>
 
+    <!-- Album action toolbar -->
+    <div class="flex flex-wrap gap-2 mb-6 items-center">
+        {% if subpath or images %}
+        <a href="/river/{{ subpath }}" id="river-link"
+            class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm transition font-medium flex items-center shadow-sm">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+            </svg>
+            瀑布模式
+        </a>
+        <button @click="shareAlbum()"
+            class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-sm transition font-medium flex items-center shadow-sm">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+            分享連結
+        </button>
+        {% endif %}
+        {% if subpath %}
+        <button @click="renameAlbum()"
+            class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded text-sm transition font-medium flex items-center shadow-sm">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            相簿更名
+        </button>
+        <button @click="$refs.uploadInput.click()" :disabled="uploading"
+            class="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white px-3 py-1.5 rounded text-sm transition font-medium flex items-center shadow-sm">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            <span x-text="uploading ? '上傳中…' : '上傳'"></span>
+        </button>
+        <input type="file" x-ref="uploadInput" multiple accept="image/*,.heic,.heif" class="hidden"
+            @change="uploadPhotos($event)">
+        {% endif %}
+        <button @click="regenerate()"
+            class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm transition font-medium shadow-sm flex items-center">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Reload &amp; Scan
+        </button>
+        {% if not subpath %}
+        <button @click="createAlbum()"
+            class="bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded text-sm transition font-medium flex items-center shadow-sm">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 4v16m8-8H4" />
+            </svg>
+            建立相簿
+        </button>
+        {% endif %}
+    </div>
+
     <!-- Subdirectories -->
     {% if dirs %}
     <h2 class="text-xl font-semibold mb-4 border-b pb-2 flex justify-between items-center">
         <span>Albums</span>
-        <button @click="regenerate()"
-            class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded text-sm transition">
-            Reload & Scan
-        </button>
     </h2>
 
     <!-- PC 版：寬螢幕正方形網格 -->
@@ -318,50 +478,23 @@
 
     <!-- Photos -->
     {% if images %}
+    {% if sort %}
     <div class="mb-4 border-b pb-2">
-        <!-- 第一行：標題 + 排序 -->
-        <div class="flex justify-between items-center mb-2">
-            <span class="text-xl font-semibold">Photos</span>
-            <div class="flex space-x-2 items-center">
-                {% if sort %}
-                <select x-model="sortBy" @change="updateSort()"
-                    class="bg-gray-50 border border-gray-300 text-gray-700 text-sm rounded focus:ring-blue-500 focus:border-blue-500 p-1 cursor-pointer focus:outline-none shadow-sm">
-                    <option value="date">拍攝日期</option>
-                    <option value="name">檔名</option>
-                </select>
-                <select x-model="sortOrder" @change="updateSort()"
-                    class="bg-gray-50 border border-gray-300 text-gray-700 text-sm rounded focus:ring-blue-500 focus:border-blue-500 p-1 cursor-pointer focus:outline-none shadow-sm">
-                    <option value="asc">升序</option>
-                    <option value="desc">降序</option>
-                </select>
-                {% endif %}
-                {% if not dirs %}
-                <button @click="regenerate()"
-                    class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded text-sm transition font-medium shadow-sm">
-                    Reload & Scan
-                </button>
-                {% endif %}
-            </div>
-        </div>
-        <!-- 第二行：功能按鈕 -->
-        <div class="flex flex-wrap gap-2">
-            <a href="/river/{{ subpath }}" id="river-link"
-                class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm transition font-medium flex items-center shadow-sm">
-                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
-                </svg>
-                瀑布模式
-            </a>
-            <button @click="shareAlbum()"
-                class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-sm transition font-medium flex items-center shadow-sm">
-                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                </svg>
-                分享連結
-            </button>
+        <!-- 排序條件（靠左） -->
+        <div class="flex space-x-2 items-center">
+            <select x-model="sortBy" @change="updateSort()"
+                class="bg-gray-50 border border-gray-300 text-gray-700 text-sm rounded focus:ring-blue-500 focus:border-blue-500 p-1 cursor-pointer focus:outline-none shadow-sm">
+                <option value="date">拍攝日期</option>
+                <option value="name">檔名</option>
+            </select>
+            <select x-model="sortOrder" @change="updateSort()"
+                class="bg-gray-50 border border-gray-300 text-gray-700 text-sm rounded focus:ring-blue-500 focus:border-blue-500 p-1 cursor-pointer focus:outline-none shadow-sm">
+                <option value="asc">升序</option>
+                <option value="desc">降序</option>
+            </select>
         </div>
     </div>
+    {% endif %}
     <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {% for img in images %}
         <div class="relative group bg-white rounded-lg shadow overflow-hidden cursor-pointer"
