@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- exifr (完整版，支援 LensModel / MakerNote) -->
     <script src="https://cdn.jsdelivr.net/npm/exifr@7/dist/full.umd.js"></script>
+    <!-- piexifjs (EXIF 注入，保留原始相機資訊) -->
+    <script src="https://cdn.jsdelivr.net/npm/piexifjs@1.0.6/piexif.js"></script>
     <!-- Google Fonts (Outfit + Nunito 圓體，近似 Yuanti TC) -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Nunito:wght@400;600&display=swap" rel="stylesheet">
     <style>
@@ -276,6 +278,8 @@
         // 全域變數
         let originalImage = null;
         let originalFileName = "";
+        let originalExifBytes = null;
+        let processedDataUrl = null;
         let originalExif = {
             model: "",
             lens: "",
@@ -445,6 +449,12 @@
             // 載入圖片
             const reader = new FileReader();
             reader.onload = function(e) {
+                // 萃取原始 EXIF bytes（供匯出時注入）
+                try {
+                    originalExifBytes = piexif.load(e.target.result);
+                } catch (err) {
+                    originalExifBytes = null;
+                }
                 originalImage = new Image();
                 originalImage.onload = function() {
                     triggerProcess();
@@ -667,8 +677,16 @@
 
                 ctx.restore();
 
-                // 將最終 Canvas 輸出成 DataURL 並更新預覽圖
-                const outputUrl = canvas.toDataURL('image/jpeg', 0.95);
+                // 將最終 Canvas 輸出成 DataURL，並注入原始 EXIF
+                let outputUrl = canvas.toDataURL('image/jpeg', 0.95);
+                if (originalExifBytes) {
+                    try {
+                        outputUrl = piexif.insert(piexif.dump(originalExifBytes), outputUrl);
+                    } catch (err) {
+                        console.warn('EXIF 注入失敗:', err);
+                    }
+                }
+                processedDataUrl = outputUrl;
                 previewImg.src = outputUrl;
                 previewImg.classList.remove('hidden');
                 spinner.classList.add('hidden');
@@ -685,33 +703,28 @@
 
         // 分享儲存功能
         btnShare.addEventListener('click', async () => {
-            if (!originalImage) return;
-            
-            const canvas = document.getElementById('canvas');
-            canvas.toBlob(async (blob) => {
-                const file = new File([blob], originalFileName.replace(/\.[^/.]+$/, "") + "_watermarked.jpg", { type: "image/jpeg" });
-                
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    try {
-                        await navigator.share({
-                            files: [file]
-                        });
-                    } catch (err) {
-                        console.log('分享取消或發生錯誤:', err);
-                    }
-                } else {
-                    alert('您的瀏覽器不支援直接分享檔案，請直接「長按圖片」選擇「加入照片」儲存至相簿。');
+            if (!processedDataUrl) return;
+
+            const res = await fetch(processedDataUrl);
+            const blob = await res.blob();
+            const file = new File([blob], originalFileName.replace(/\.[^/.]+$/, "") + "_watermarked.jpg", { type: "image/jpeg" });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({ files: [file] });
+                } catch (err) {
+                    if (err.name !== 'AbortError') console.error('分享錯誤:', err);
                 }
-            }, 'image/jpeg', 0.95);
+            } else {
+                alert('您的瀏覽器不支援直接分享檔案，請直接「長按圖片」選擇「加入照片」儲存至相簿。');
+            }
         });
 
         // 下載功能 (儲存至檔案 App)
         btnDownload.addEventListener('click', () => {
-            if (!originalImage) return;
-            const canvas = document.getElementById('canvas');
-            const url = canvas.toDataURL('image/jpeg', 0.95);
+            if (!processedDataUrl) return;
             const a = document.createElement('a');
-            a.href = url;
+            a.href = processedDataUrl;
             a.download = originalFileName.replace(/\.[^/.]+$/, "") + "_watermarked.jpg";
             document.body.appendChild(a);
             a.click();
