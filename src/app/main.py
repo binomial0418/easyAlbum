@@ -5,7 +5,7 @@ from PIL import Image
 from flask import Flask, render_template, send_from_directory, abort, request, jsonify, send_file, redirect, url_for, flash
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash
-from src.app.utils import scan_directory, ensure_thumbnail, set_album_cover, set_album_sort_config, clean_directory_cache, PHOTO_ROOT, THUMB_ROOT, get_album_share_token, set_album_share_token, verify_album_share_token, get_album_cover
+from src.app.utils import scan_directory, ensure_thumbnail, set_album_cover, set_album_sort_config, clean_directory_cache, PHOTO_ROOT, THUMB_ROOT, get_album_share_token, set_album_share_token, verify_album_share_token, get_album_cover, get_visitor_albums, set_visitor_albums, is_visitor_accessible
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-please-change')
@@ -243,6 +243,103 @@ def serve_photo(filename):
             abort(500)
             
     return send_from_directory(PHOTO_ROOT, filename)
+
+@app.route('/visitor/')
+@app.route('/visitor/<path:subpath>')
+def visitor_view(subpath=''):
+    """Visitor mode: read-only album view, only shows admin-approved albums."""
+    allowed_albums = get_visitor_albums()
+
+    if subpath and not is_visitor_accessible(subpath, allowed_albums):
+        abort(403, description="此相簿不在訪客瀏覽範圍內")
+
+    content = scan_directory(subpath)
+    if content is None:
+        abort(404, description="Album not found")
+
+    if not subpath:
+        content['dirs'] = [d for d in content['dirs'] if d['name'] in allowed_albums]
+
+    breadcrumbs = []
+    parts = subpath.strip('/').split('/')
+    if parts == ['']:
+        parts = []
+
+    current_path = ''
+    for part in parts:
+        current_path = os.path.join(current_path, part)
+        breadcrumbs.append({'name': part, 'path': current_path})
+
+    return render_template('visitor.html',
+                         subpath=subpath,
+                         dirs=content['dirs'],
+                         images=content['images'],
+                         sort=content.get('sort'),
+                         breadcrumbs=breadcrumbs)
+
+@app.route('/visitor-river/')
+@app.route('/visitor-river/<path:subpath>')
+def visitor_river_view(subpath=''):
+    """Visitor mode river/large-image view, only for admin-approved albums."""
+    allowed_albums = get_visitor_albums()
+
+    if subpath and not is_visitor_accessible(subpath, allowed_albums):
+        abort(403, description="此相簿不在訪客瀏覽範圍內")
+
+    content = scan_directory(subpath)
+    if content is None:
+        abort(404, description="Album not found")
+
+    cover_url = None
+    full_dir = os.path.join(PHOTO_ROOT, subpath)
+    cover_filename = get_album_cover(full_dir)
+    if cover_filename:
+        base_url = request.host_url.rstrip('/')
+        if base_url.startswith('http://'):
+            base_url = base_url.replace('http://', 'https://', 1)
+        encoded_cover_path = quote(
+            (subpath + '/' + cover_filename).lstrip('/'), safe='/'
+        )
+        cover_url = f"{base_url}/thumbnail/{encoded_cover_path}"
+
+    return render_template('river.html',
+                         subpath=subpath,
+                         images=content['images'],
+                         is_public=True,
+                         cover_url=cover_url)
+
+@app.route('/admin/visitor-settings')
+@login_required
+def visitor_settings():
+    """Admin page to select which albums are visible in visitor mode."""
+    content = scan_directory('')
+    all_dirs = [d['name'] for d in content['dirs']] if content else []
+    allowed = get_visitor_albums()
+    base_url = request.host_url.rstrip('/')
+    if base_url.startswith('http://'):
+        base_url = base_url.replace('http://', 'https://', 1)
+    visitor_url = f"{base_url}/visitor/"
+    return render_template('visitor_settings.html',
+                          all_dirs=all_dirs,
+                          allowed_albums=allowed,
+                          visitor_url=visitor_url)
+
+@app.route('/api/set-visitor-albums', methods=['POST'])
+@login_required
+def set_visitor_albums_api():
+    """API to save the visitor-accessible album list."""
+    data = request.get_json()
+    if not data or 'albums' not in data:
+        return jsonify({'success': False, 'error': 'Missing parameters'}), 400
+
+    albums = data['albums']
+    if not isinstance(albums, list):
+        return jsonify({'success': False, 'error': 'Invalid format'}), 400
+
+    if set_visitor_albums(albums):
+        return jsonify({'success': True})
+    else:
+        return jsonify({'success': False, 'error': 'Failed to save'}), 500
 
 @app.route('/manifest.json')
 def serve_manifest():

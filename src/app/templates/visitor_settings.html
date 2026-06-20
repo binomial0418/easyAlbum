@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script>
+function visitorSettingsData() {
+    return {
+        selected: {{ allowed_albums | tojson }},
+        saving: false,
+        saved: false,
+        toggle(name) {
+            const idx = this.selected.indexOf(name);
+            if (idx >= 0) { this.selected.splice(idx, 1); }
+            else { this.selected.push(name); }
+        },
+        isSelected(name) {
+            return this.selected.includes(name);
+        },
+        async save() {
+            this.saving = true;
+            this.saved = false;
+            try {
+                const res = await fetch('/api/set-visitor-albums', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ albums: this.selected })
+                });
+                const data = await res.json();
+                if (data.success) { this.saved = true; setTimeout(() => { this.saved = false; }, 3000); }
+                else { alert('儲存失敗：' + data.error); }
+            } catch(e) {
+                alert('發生錯誤：' + e);
+            } finally {
+                this.saving = false;
+            }
+        }
+    };
+}
+</script>
+<div x-data="visitorSettingsData()">
+
+    <!-- 頁面標題與說明 -->
+    <div class="mb-6">
+        <div class="flex items-center mb-1">
+            <a href="/" class="text-sm text-gray-400 hover:text-blue-600 transition mr-2">← 返回相簿</a>
+        </div>
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">訪客模式設定</h1>
+        <p class="text-sm text-gray-500">勾選可以在訪客頁面瀏覽的相簿。訪客可查看照片與 EXIF 資訊，但無法進行任何操作。</p>
+    </div>
+
+    <!-- 訪客頁面連結 -->
+    <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+            <div class="text-sm font-semibold text-blue-700 mb-0.5">訪客頁面網址</div>
+            <div class="text-xs text-blue-600 font-mono break-all">{{ visitor_url }}</div>
+        </div>
+        <button
+            onclick="navigator.clipboard.writeText('{{ visitor_url }}').then(() => { this.textContent = '已複製！'; setTimeout(() => this.textContent = '複製連結', 2000); })"
+            class="flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+            複製連結
+        </button>
+    </div>
+
+    <!-- 相簿勾選清單 -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+        <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-gray-700">頂層相簿列表</h2>
+            <span class="text-xs text-gray-400">勾選後按「儲存設定」生效</span>
+        </div>
+
+        {% if all_dirs %}
+        <ul class="divide-y divide-gray-100">
+            {% for dir_name in all_dirs %}
+            <li class="flex items-center px-4 py-3 hover:bg-gray-50 transition cursor-pointer"
+                @click="toggle('{{ dir_name }}')">
+                <div class="flex items-center justify-center w-5 h-5 rounded border-2 mr-3 flex-shrink-0 transition"
+                     :class="isSelected('{{ dir_name }}') ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'">
+                    <svg x-show="isSelected('{{ dir_name }}')" class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+                <div class="flex items-center min-w-0 flex-1">
+                    <svg class="w-4 h-4 text-blue-400 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                    </svg>
+                    <span class="text-sm text-gray-800 truncate">{{ dir_name }}</span>
+                </div>
+                <span x-show="isSelected('{{ dir_name }}')" class="ml-2 text-xs text-blue-600 font-medium flex-shrink-0">開放訪客</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-center py-10 text-gray-400 text-sm">
+            尚未找到任何相簿
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 儲存按鈕 -->
+    <div class="flex items-center gap-4">
+        <button @click="save()"
+            :disabled="saving"
+            class="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white px-6 py-2.5 rounded-lg font-medium text-sm transition shadow-sm">
+            <span x-text="saving ? '儲存中...' : '儲存設定'"></span>
+        </button>
+        <span x-show="saved" x-transition class="text-sm text-green-600 font-medium flex items-center">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            已儲存
+        </span>
+    </div>
+
+</div>
+{% endblock %}
